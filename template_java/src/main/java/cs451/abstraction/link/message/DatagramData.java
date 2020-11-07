@@ -1,4 +1,4 @@
-package cs451.abstraction.link;
+package cs451.abstraction.link.message;
 
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
@@ -24,7 +24,7 @@ public abstract class DatagramData {
      * @param udpPacket UDP packet from which the sender id will be read
      * @return sender process id that sent the given packet
      */
-    static int getSenderHostId(DatagramPacket udpPacket) {
+    public static int getSenderHostId(DatagramPacket udpPacket) {
         ByteBuffer packetBytes = ByteBuffer.wrap(udpPacket.getData());
         return packetBytes.getInt();
     }

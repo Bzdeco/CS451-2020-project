@@ -1,4 +1,4 @@
-package cs451.abstraction.link;
+package cs451.abstraction.link.message;
 
 import java.time.Instant;
 
