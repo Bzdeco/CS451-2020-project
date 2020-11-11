@@ -22,20 +22,14 @@ public class HostResolver {
     }
 
     public Host resolveReceiverHost(DatagramData data) {
-        Host resolvedHost = hostMapping.get(data.getReceiverHostId());
-        checkResolvedHost(resolvedHost);
-        return resolvedHost;
+        return hostMapping.get(data.getReceiverHostId());
     }
 
     public Host resolveSenderHost(DatagramData data) {
-        Host resolvedHost = hostMapping.get(data.getSenderHostId());
-        checkResolvedHost(resolvedHost);
-        return resolvedHost;
+        return hostMapping.get(data.getSenderHostId());
     }
 
-    private void checkResolvedHost(Host host) {
-        if (host == null) {
-            throw new RuntimeException("Unresolved sender of the deserialized packet.");
-        }
+    public Host getHostById(int hostId) {
+        return hostMapping.get(hostId);
     }
 }

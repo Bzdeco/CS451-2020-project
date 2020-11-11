@@ -29,14 +29,17 @@ public class Parser {
 
         int argsNum = args.length;
         if (argsNum != Constants.ARG_LIMIT_NO_CONFIG && argsNum != Constants.ARG_LIMIT_CONFIG) {
+            System.err.println("Error in number of arguments");
             help();
         }
 
         if (!idParser.populate(args[Constants.ID_KEY], args[Constants.ID_VALUE])) {
+            System.err.println("Error in ID argument");
             help();
         }
 
         if (!hostsParser.populate(args[Constants.HOSTS_KEY], args[Constants.HOSTS_VALUE])) {
+            System.err.println("Error in HOSTS argument");
             help();
         }
 
@@ -45,14 +48,17 @@ public class Parser {
         }
 
         if (!barrierParser.populate(args[Constants.BARRIER_KEY], args[Constants.BARRIER_VALUE])) {
+            System.err.println("Error in BARRIER argument");
             help();
         }
 
         if (!signalParser.populate(args[Constants.SIGNAL_KEY], args[Constants.SIGNAL_VALUE])) {
+            System.err.println("Error in SIGNAL argument");
             help();
         }
 
         if (!outputParser.populate(args[Constants.OUTPUT_KEY], args[Constants.OUTPUT_VALUE])) {
+            System.err.println("Error in OUTPUT argument");
             help();
         }
 
@@ -64,7 +70,7 @@ public class Parser {
     }
 
     private void help() {
-        System.err.println("Usage: ./run.sh --id ID --hosts HOSTS --barrier NAME:PORT --signal NAME:PORT --output OUTPUT [config]");
+        System.err.println("Usage: ./run.sh --id ID --hosts.txt HOSTS --barrier NAME:PORT --signal NAME:PORT --output OUTPUT [config]");
         System.exit(1);
     }
 

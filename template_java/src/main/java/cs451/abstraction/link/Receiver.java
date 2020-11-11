@@ -11,6 +11,10 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
 
 public class Receiver {
 
@@ -20,15 +24,18 @@ public class Receiver {
     final private MessagesStorage storage;
     final private HostResolver hostResolver;
     final private MessageFactory messageFactory;
-
-    private byte[] receiveBuffer; // TODO: can reuse in concurrent use?
+    final private List<DeliveryObserver> deliveryObservers;
 
     public Receiver(Host host, MessagesStorage storage, HostResolver hostResolver, MessageFactory messageFactory) {
         this.storage = storage;
         this.receivingSocket = createReceivingSocket(host);
         this.hostResolver = hostResolver;
         this.messageFactory = messageFactory;
-        this.receiveBuffer = new byte[MAX_BYTES_IN_PACKET];
+        this.deliveryObservers = new LinkedList<>();
+    }
+
+    public void registerDeliveryObserver(DeliveryObserver observer) {
+        deliveryObservers.add(observer);
     }
 
     private DatagramSocket createReceivingSocket(Host host) {
@@ -44,39 +51,48 @@ public class Receiver {
 
     public void receive() {
         DatagramPacket receivedPacket = doReceive();
-        storage.addReceivedData(new DatagramData(receivedPacket));
+        DatagramData data = new DatagramData(receivedPacket);
+        storage.addReceivedData(data);
+        System.out.println("R: " + data);
     }
 
     public void processReceivedPackets() {
+        Set<DatagramData> toRemoveFromReceived = new HashSet<>();
+
         storage.getReceivedData().forEach(data -> {
             DatagramDataType dataType = data.getDataType();
 
             if (dataType.equals(DatagramDataType.PAYLOAD)) {
                 queueAcknowledgmentReply(data);
-                // TODO: deliver
+                deliver(messageFactory.createReceived(data));
+                toRemoveFromReceived.add(data);
             } else if (dataType.equals(DatagramDataType.ACK)) {
                 acknowledge(data);
             }
+            toRemoveFromReceived.add(data);
         });
 
-        storage.clearReceivedPackets();
+        storage.removeFromReceivedData(toRemoveFromReceived);
     }
 
     private void queueAcknowledgmentReply(DatagramData data) {
         DatagramData ackData = DatagramData.convertReceivedToAcknowledgment(data);
         Message ackReply = messageFactory.createToSend(ackData);
         storage.addAcknowledgmentToSend(ackReply);
+        System.out.println("Queued ack " + ackData);
     }
 
     private void acknowledge(DatagramData ackData) {
         DatagramData originalData = DatagramData.convertAcknowledgmentToOriginal(ackData);
         Message originalMessage = messageFactory.createToSend(originalData);
         storage.acknowledge(originalMessage, ackData);
+        System.out.println("Acknowledged " + ackData);
     }
 
     private DatagramPacket doReceive() {
         try {
-            DatagramPacket packet = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+            byte[] buffer = new byte[MAX_BYTES_IN_PACKET];
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             receivingSocket.receive(packet);
             return packet;
         } catch (IOException exc) {
@@ -84,5 +100,9 @@ public class Receiver {
             exc.printStackTrace();
             throw new RuntimeException(exc);
         }
+    }
+
+    private void deliver(Message message) {
+        deliveryObservers.forEach(observer -> observer.notifyOfDelivery(message));
     }
 }

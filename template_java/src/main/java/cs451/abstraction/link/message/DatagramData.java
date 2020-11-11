@@ -92,4 +92,9 @@ public class DatagramData {
     public int hashCode() {
         return Objects.hash(senderHostId, receiverHostId, type, sequenceNumber);
     }
+
+    @Override
+    public String toString() {
+        return type + " " + senderHostId + " " + receiverHostId + " " + sequenceNumber;
+    }
 }

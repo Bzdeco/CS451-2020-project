@@ -27,15 +27,15 @@ public class TransmissionParameters {
         this.retransmissionTimeout = Duration.ofMillis(BASE_RTO_MILLIS);
     }
 
-    public Duration getRetransmissionTimeout() {
+    public synchronized Duration getRetransmissionTimeout() {
         return retransmissionTimeout;
     }
 
-    public void increaseRetransmissionTimeout() {
+    public synchronized void increaseRetransmissionTimeout() {
         this.retransmissionTimeout = retransmissionTimeout.multipliedBy(BACK_OFF_FACTOR);
     }
 
-    public void updateRetransmissionTimeout(Duration roundTripTimeMeasurement) {
+    public synchronized void updateRetransmissionTimeout(Duration roundTripTimeMeasurement) {
         if (isFirstUpdate()) {
             sRoundTripTime = roundTripTimeMeasurement;
             roundTripTimeVariance = roundTripTimeMeasurement.dividedBy(2);

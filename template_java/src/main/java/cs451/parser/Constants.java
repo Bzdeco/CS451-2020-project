@@ -9,7 +9,7 @@ public class Constants {
     public static final int ID_KEY = 0;
     public static final int ID_VALUE = 1;
 
-    // indexes for hosts
+    // indexes for hosts.txt
     public static final int HOSTS_KEY = 2;
     public static final int HOSTS_VALUE = 3;
 

@@ -26,14 +26,14 @@ public class Host {
             ip = formatHostIpAddress(ipString).orElse("");
             port = Integer.parseInt(portString);
             if (port <= 0) {
-                System.err.println("Port in the hosts file must be a positive number!");
+                System.err.println("Port in the hosts.txt file must be a positive number!");
                 return false;
             }
         } catch (NumberFormatException e) {
             if (port == -1) {
-                System.err.println("Id in the hosts file must be a number!");
+                System.err.println("Id in the hosts.txt file must be a number!");
             } else {
-                System.err.println("Port in the hosts file must be a number!");
+                System.err.println("Port in the hosts.txt file must be a number!");
             }
             return false;
         }

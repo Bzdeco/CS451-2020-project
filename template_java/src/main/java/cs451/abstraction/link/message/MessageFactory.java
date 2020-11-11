@@ -3,14 +3,17 @@ package cs451.abstraction.link.message;
 import cs451.abstraction.link.HostResolver;
 import cs451.parser.Host;
 
-import java.net.DatagramPacket;
-
 public class MessageFactory {
 
     final private HostResolver hostResolver;
 
     public MessageFactory(HostResolver hostResolver) {
         this.hostResolver = hostResolver;
+    }
+
+    public Message createPayloadMessage(int senderHostId, int receiverHostId, int sequenceNumber) {
+        DatagramData data = new DatagramData(senderHostId, receiverHostId, DatagramDataType.PAYLOAD, sequenceNumber);
+        return createToSend(data);
     }
 
     public Message createToSend(DatagramData data) {

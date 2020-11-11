@@ -25,4 +25,10 @@ public enum DatagramDataType {
     public static int getEncodingSizeInBytes() {
         return 1;
     }
+
+    @Override
+    public String toString() {
+        if (encodingValue == (byte) 0) return "PAYLOAD";
+        else return "ACK";
+    }
 }

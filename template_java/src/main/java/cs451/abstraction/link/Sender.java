@@ -16,13 +16,11 @@ public class Sender {
     final private static int MAX_RETRIES_IN_WINDOW = 2; // FIXME: arbitrary
 
     final private MessagesStorage storage;
-    final private Set<Message> messagesToSend;
     final private DatagramSocket sendingSocket;
 
     public Sender(MessagesStorage storage)
     {
         this.storage = storage;
-        this.messagesToSend = new HashSet<>();
         this.sendingSocket = createSendingSocket();
     }
 
@@ -36,11 +34,13 @@ public class Sender {
         }
     }
 
-    public void send(Message message) {
+    public boolean send(Message message) {
         if (storage.canSendMessageImmediately()) {
             doSend(message);
             storage.addUnacknowledgedMessage(message);
-        } else queueForSending(message);
+            return true;
+        }
+        return false;
     }
 
     private void doSend(Message message) {
@@ -53,29 +53,18 @@ public class Sender {
         }
     }
 
-    private void queueForSending(Message message) {
-        messagesToSend.add(message);
-    }
-
-    public void processPendingMessages() {
-        int numberOfFreeMessageSlots = storage.getNumberOfFreeMessageSlots();
-
-        Iterator<Message> iterator = messagesToSend.iterator();
-        while (numberOfFreeMessageSlots > 0 && messagesToSend.size() > 0) {
-            Message message = iterator.next();
-            doSend(message);
-            storage.addUnacknowledgedMessage(message);
-            iterator.remove();
-            numberOfFreeMessageSlots--;
-        }
-    }
-
     public void processPendingAcknowledgmentReplies() {
-        storage.getPendingAcknowledgmentReplies().forEach(this::doSend);
-        storage.clearPendingAcknowledgmentReplies();
+        Set<Message> toSend = storage.getPendingAcknowledgmentReplies();
+        toSend.forEach(this::doSend);
+        storage.removeFromPendingAcknowledgmentReplies(toSend);
     }
 
     public void retransmitUnacknowledgedMessages() {
+        retransmitRecentUnacknowledgedMessages();
+        retransmitStaleMessages();
+    }
+
+    private void retransmitRecentUnacknowledgedMessages() {
         Map<Message, TransmissionHistory> unacknowledgedMessages = storage.getUnacknowledgedMessages();
 
         unacknowledgedMessages.forEach(this::resendIfTimedOut);
@@ -86,6 +75,10 @@ public class Sender {
         });
 
         storage.moveFromRecentToStale(newStaleMessages);
+    }
+
+    private void retransmitStaleMessages() {
+        storage.getStaleUnacknowledgedMessages().forEach(this::resendIfTimedOut);
     }
 
     private void resendIfTimedOut(Message message, TransmissionHistory history) {
@@ -105,9 +98,5 @@ public class Sender {
 
     private boolean isNumberOfRetriesExceeded(TransmissionHistory history) {
         return history.getRetries() > MAX_RETRIES_IN_WINDOW;
-    }
-
-    public void processStaleMessages() {
-        storage.getStaleUnacknowledgedMessages().forEach(this::resendIfTimedOut);
     }
 }
