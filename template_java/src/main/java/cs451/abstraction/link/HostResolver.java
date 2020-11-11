@@ -3,12 +3,10 @@ package cs451.abstraction.link;
 import cs451.abstraction.link.message.DatagramData;
 import cs451.parser.Host;
 
-import java.net.DatagramPacket;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// TODO: should be instantiated as a singleton class at the beginning for the given process 
 public class HostResolver {
 
     final private Map<Integer, Host> hostMapping;
@@ -23,12 +21,21 @@ public class HostResolver {
         return mapping;
     }
 
-    public Host resolveSenderHost(DatagramPacket udpPacket) {
-        int senderHostId = DatagramData.getSenderHostId(udpPacket);
-        Host resolvedHost = hostMapping.get(senderHostId);
-        if (resolvedHost == null) {
+    public Host resolveReceiverHost(DatagramData data) {
+        Host resolvedHost = hostMapping.get(data.getReceiverHostId());
+        checkResolvedHost(resolvedHost);
+        return resolvedHost;
+    }
+
+    public Host resolveSenderHost(DatagramData data) {
+        Host resolvedHost = hostMapping.get(data.getSenderHostId());
+        checkResolvedHost(resolvedHost);
+        return resolvedHost;
+    }
+
+    private void checkResolvedHost(Host host) {
+        if (host == null) {
             throw new RuntimeException("Unresolved sender of the deserialized packet.");
         }
-        return resolvedHost;
     }
 }

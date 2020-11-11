@@ -2,22 +2,20 @@ package cs451.abstraction.link.message;
 
 import cs451.parser.Host;
 
-import java.io.Serializable;
 import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
+import java.util.Objects;
 
-public class Message implements Serializable {
+public class Message {
 
     final private Host sender;
     final private Host receiver;
     final private DatagramData data;
-    private MessageTransmissionProperties properties;
 
-    Message(Host sender, Host receiver, DatagramData data, MessageTransmissionProperties properties) {
+    Message(Host sender, Host receiver, DatagramData data) {
         this.sender = sender;
         this.receiver = receiver;
         this.data = data;
-        this.properties = properties;
     }
 
     public Host getReceiver() {
@@ -41,13 +39,6 @@ public class Message implements Serializable {
         return data;
     }
 
-    public MessageTransmissionProperties getTransmissionProperties() {
-        if (properties == null) {
-            throw new RuntimeException("Accessed empty transmission properties field");
-        }
-        return properties;
-    }
-
     public DatagramPacket toSentPacket() {
         byte[] messageBytes = getData().convertToBytes();
         Host receiver = getReceiver();
@@ -55,15 +46,16 @@ public class Message implements Serializable {
         return new DatagramPacket(messageBytes, messageBytes.length, receiverSocketAddress);
     }
 
-    public void markSending() {
-        if (properties == null) {
-            initializeProperties();
-        } else {
-            properties.markSending();
-        }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Message message = (Message) o;
+        return data.equals(message.data);
     }
 
-    private void initializeProperties() {
-        this.properties = new MessageTransmissionProperties();
+    @Override
+    public int hashCode() {
+        return Objects.hash(data);
     }
 }

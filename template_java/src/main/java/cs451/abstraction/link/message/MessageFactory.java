@@ -8,20 +8,18 @@ import java.net.DatagramPacket;
 public class MessageFactory {
 
     final private HostResolver hostResolver;
-    final private DatagramDataFactory dataFactory;
 
-    public MessageFactory(HostResolver hostResolver, DatagramDataFactory dataFactory) {
+    public MessageFactory(HostResolver hostResolver) {
         this.hostResolver = hostResolver;
-        this.dataFactory = dataFactory;
     }
 
-    public Message createToSend(Host receiver, DatagramData data) {
-        return new Message(null, receiver, data, null);
+    public Message createToSend(DatagramData data) {
+        Host receiver = hostResolver.resolveReceiverHost(data);
+        return new Message(null, receiver, data);
     }
 
-    public Message createReceived(DatagramPacket udpPacket) {
-        Host sender = hostResolver.resolveSenderHost(udpPacket);
-        DatagramData data = dataFactory.from(udpPacket);
-        return new Message(sender, null, data, null);
+    public Message createReceived(DatagramData data) {
+        Host sender = hostResolver.resolveSenderHost(data);
+        return new Message(sender, null, data);
     }
 }

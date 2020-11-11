@@ -1,5 +1,7 @@
 package cs451.abstraction.link;
 
+import cs451.abstraction.link.message.DatagramData;
+import cs451.abstraction.link.message.DatagramDataType;
 import cs451.abstraction.link.message.Message;
 import cs451.abstraction.link.message.MessageFactory;
 import cs451.parser.Host;
@@ -15,13 +17,13 @@ public class Receiver {
     final private static int MAX_BYTES_IN_PACKET = 256; // FIXME: arbitrary
 
     final private DatagramSocket receivingSocket;
-    final private SentMessagesStorage storage;
+    final private MessagesStorage storage;
     final private HostResolver hostResolver;
     final private MessageFactory messageFactory;
 
-    private byte[] receiveBuffer; // TODO: can reuse?
+    private byte[] receiveBuffer; // TODO: can reuse in concurrent use?
 
-    public Receiver(Host host, SentMessagesStorage storage, HostResolver hostResolver, MessageFactory messageFactory) {
+    public Receiver(Host host, MessagesStorage storage, HostResolver hostResolver, MessageFactory messageFactory) {
         this.storage = storage;
         this.receivingSocket = createReceivingSocket(host);
         this.hostResolver = hostResolver;
@@ -40,12 +42,36 @@ public class Receiver {
         }
     }
 
-    public Message receive() {
+    public void receive() {
         DatagramPacket receivedPacket = doReceive();
-        return messageFactory.createReceived(receivedPacket);
-        // TODO: check if with data or ack message
-        // if with data order sender to send ack message and deliver this one (?)
-        // if ack message process recent unacknowledged and stale messages in storage
+        storage.addReceivedData(new DatagramData(receivedPacket));
+    }
+
+    public void processReceivedPackets() {
+        storage.getReceivedData().forEach(data -> {
+            DatagramDataType dataType = data.getDataType();
+
+            if (dataType.equals(DatagramDataType.PAYLOAD)) {
+                queueAcknowledgmentReply(data);
+                // TODO: deliver
+            } else if (dataType.equals(DatagramDataType.ACK)) {
+                acknowledge(data);
+            }
+        });
+
+        storage.clearReceivedPackets();
+    }
+
+    private void queueAcknowledgmentReply(DatagramData data) {
+        DatagramData ackData = DatagramData.convertReceivedToAcknowledgment(data);
+        Message ackReply = messageFactory.createToSend(ackData);
+        storage.addAcknowledgmentToSend(ackReply);
+    }
+
+    private void acknowledge(DatagramData ackData) {
+        DatagramData originalData = DatagramData.convertAcknowledgmentToOriginal(ackData);
+        Message originalMessage = messageFactory.createToSend(originalData);
+        storage.acknowledge(originalMessage, ackData);
     }
 
     private DatagramPacket doReceive() {

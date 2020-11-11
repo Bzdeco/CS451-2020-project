@@ -2,12 +2,12 @@ package cs451.abstraction.link.message;
 
 import java.time.Instant;
 
-public class MessageTransmissionProperties {
+public class TransmissionHistory {
 
     private Instant sendTime;
     private int retries;
 
-    public MessageTransmissionProperties() {
+    public TransmissionHistory() {
         this.sendTime = Instant.now();
         this.retries = -1;
     }
@@ -18,10 +18,5 @@ public class MessageTransmissionProperties {
 
     public int getRetries() {
         return retries;
-    }
-
-    public void markSending() {
-        this.sendTime = Instant.now();
-        this.retries++;
     }
 }

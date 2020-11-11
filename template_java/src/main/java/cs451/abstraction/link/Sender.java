@@ -1,6 +1,7 @@
 package cs451.abstraction.link;
 
 import cs451.abstraction.link.message.Message;
+import cs451.abstraction.link.message.TransmissionHistory;
 import cs451.parser.Host;
 
 import java.io.IOException;
@@ -9,29 +10,20 @@ import java.net.SocketException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Sender {
 
     final private static int MAX_RETRIES_IN_WINDOW = 2; // FIXME: arbitrary
 
-    final private Map<Host, TransmissionParameters> transmissionParametersForHosts;
-    final private SentMessagesStorage storage;
+    final private MessagesStorage storage;
     final private Set<Message> messagesToSend;
     final private DatagramSocket sendingSocket;
 
-    public Sender(List<Host> hosts, SentMessagesStorage storage)
+    public Sender(MessagesStorage storage)
     {
-        this.transmissionParametersForHosts = initializeTransmissionParameters(hosts);
         this.storage = storage;
         this.messagesToSend = new HashSet<>();
         this.sendingSocket = createSendingSocket();
-    }
-
-    private Map<Host, TransmissionParameters> initializeTransmissionParameters(List<Host> hosts) {
-        Map<Host, TransmissionParameters> transmissionParametersForHosts = new HashMap<>();
-        hosts.forEach(host -> transmissionParametersForHosts.put(host, new TransmissionParameters()));
-        return transmissionParametersForHosts;
     }
 
     private DatagramSocket createSendingSocket() {
@@ -54,7 +46,6 @@ public class Sender {
     private void doSend(Message message) {
         try {
             sendingSocket.send(message.toSentPacket());
-            message.markSending();
         } catch (IOException exc) {
             System.err.println("Unable to send a UDP packet due to I/O exception");
             exc.printStackTrace();
@@ -79,39 +70,44 @@ public class Sender {
         }
     }
 
-    public void retransmitUnacknowledgedMessages() {
-        Set<Message> unacknowledgedMessages = storage.getUnacknowledgedMessages();
-        unacknowledgedMessages.forEach(this::resendIfTimedOut);
-        Set<Message> newStaleMessages = unacknowledgedMessages.stream()
-                .filter(this::isNumberOfRetriesExceeded)
-                .collect(Collectors.toSet());
-
-        storage.moveFromUnacknowledgedToStale(newStaleMessages);
+    public void processPendingAcknowledgmentReplies() {
+        storage.getPendingAcknowledgmentReplies().forEach(this::doSend);
+        storage.clearPendingAcknowledgmentReplies();
     }
 
-    private void resendIfTimedOut(Message message) {
-        TransmissionParameters transmissionParameters = getTransmissionParameters(message);
+    public void retransmitUnacknowledgedMessages() {
+        Map<Message, TransmissionHistory> unacknowledgedMessages = storage.getUnacknowledgedMessages();
 
-        if (isTimedOut(message, transmissionParameters)) {
+        unacknowledgedMessages.forEach(this::resendIfTimedOut);
+
+        Set<Message> newStaleMessages = new HashSet<>();
+        unacknowledgedMessages.forEach((message, history) -> {
+            if (isNumberOfRetriesExceeded(history)) newStaleMessages.add(message);
+        });
+
+        storage.moveFromRecentToStale(newStaleMessages);
+    }
+
+    private void resendIfTimedOut(Message message, TransmissionHistory history) {
+        Host receiver = message.getReceiver();
+        TransmissionParameters transmissionParameters = storage.getTransmissionParametersFor(receiver.getId());
+
+        if (isTimedOut(history, transmissionParameters)) {
             doSend(message);
-            transmissionParameters.extendRetransmissionTimeout();
+            transmissionParameters.increaseRetransmissionTimeout();
         }
     }
 
-    private TransmissionParameters getTransmissionParameters(Message message) {
-        return transmissionParametersForHosts.get(message.getReceiver());
-    }
-
-    private boolean isTimedOut(Message message, TransmissionParameters receiverTransmissionParameters) {
-        Duration elapsedTime = Duration.between(message.getTransmissionProperties().getSendTime(), Instant.now());
+    private boolean isTimedOut(TransmissionHistory history, TransmissionParameters receiverTransmissionParameters) {
+        Duration elapsedTime = Duration.between(history.getSendTime(), Instant.now());
         return elapsedTime.compareTo(receiverTransmissionParameters.getRetransmissionTimeout()) > 0;
     }
 
-    private boolean isNumberOfRetriesExceeded(Message message) {
-        return message.getTransmissionProperties().getRetries() > MAX_RETRIES_IN_WINDOW;
+    private boolean isNumberOfRetriesExceeded(TransmissionHistory history) {
+        return history.getRetries() > MAX_RETRIES_IN_WINDOW;
     }
 
     public void processStaleMessages() {
-        storage.getStaleMessages().forEach(this::resendIfTimedOut);
+        storage.getStaleUnacknowledgedMessages().forEach(this::resendIfTimedOut);
     }
 }

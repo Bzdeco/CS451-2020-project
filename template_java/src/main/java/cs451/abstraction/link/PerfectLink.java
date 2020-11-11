@@ -13,10 +13,10 @@ public class PerfectLink implements Link {
     final private Receiver receiver;
 
     public PerfectLink(Host host, List<Host> allHosts, MessageFactory messageFactory) {
-        SentMessagesStorage storage = new SentMessagesStorage();
+        MessagesStorage storage = new MessagesStorage(allHosts);
         HostResolver hostResolver = new HostResolver(allHosts);
 
-        this.sender = new Sender(allHosts, storage);
+        this.sender = new Sender(storage);
         this.receiver = new Receiver(host, storage, hostResolver, messageFactory);
     }
 
