@@ -19,4 +19,9 @@ public class TransmissionHistory {
     public int getRetries() {
         return retries;
     }
+
+    public void markSending() {
+        sendTime = Instant.now();
+        retries++;
+    }
 }

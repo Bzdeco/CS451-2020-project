@@ -36,8 +36,10 @@ public class Sender {
 
     public boolean send(Message message) {
         if (storage.canSendMessageImmediately()) {
+            TransmissionHistory history = new TransmissionHistory();
             doSend(message);
-            storage.addUnacknowledgedMessage(message);
+            history.markSending();
+            storage.addUnacknowledgedMessage(message, history);
             return true;
         }
         return false;
@@ -71,7 +73,10 @@ public class Sender {
 
         Set<Message> newStaleMessages = new HashSet<>();
         unacknowledgedMessages.forEach((message, history) -> {
-            if (isNumberOfRetriesExceeded(history)) newStaleMessages.add(message);
+            if (isNumberOfRetriesExceeded(history)) {
+                System.out.println("New stale message: " + message.getData());
+                newStaleMessages.add(message);
+            }
         });
 
         storage.moveFromRecentToStale(newStaleMessages);
@@ -86,7 +91,9 @@ public class Sender {
         TransmissionParameters transmissionParameters = storage.getTransmissionParametersFor(receiver.getId());
 
         if (isTimedOut(history, transmissionParameters)) {
+            System.out.println("Resending " + message.getData());
             doSend(message);
+            history.markSending();
             transmissionParameters.increaseRetransmissionTimeout();
         }
     }

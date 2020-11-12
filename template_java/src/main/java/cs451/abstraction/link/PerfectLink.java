@@ -37,10 +37,15 @@ public class PerfectLink implements DeliveryObserver, Link {
 
     @Override
     public void send(Message message) {
-        boolean wasSent = false;
+        boolean wasSent = sender.send(message);
 
         while (!wasSent) {
-            wasSent = sender.send(message);
+            try {
+                Thread.sleep(10);
+                wasSent = sender.send(message);
+            } catch (InterruptedException exc) {
+                return;
+            }
         }
     }
 

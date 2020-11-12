@@ -53,7 +53,6 @@ public class Receiver {
         DatagramPacket receivedPacket = doReceive();
         DatagramData data = new DatagramData(receivedPacket);
         storage.addReceivedData(data);
-        System.out.println("R: " + data);
     }
 
     public void processReceivedPackets() {
@@ -67,9 +66,9 @@ public class Receiver {
                 deliver(messageFactory.createReceived(data));
                 toRemoveFromReceived.add(data);
             } else if (dataType.equals(DatagramDataType.ACK)) {
-                acknowledge(data);
+                boolean acknowledged = acknowledge(data);
+                if (acknowledged) toRemoveFromReceived.add(data);
             }
-            toRemoveFromReceived.add(data);
         });
 
         storage.removeFromReceivedData(toRemoveFromReceived);
@@ -79,14 +78,12 @@ public class Receiver {
         DatagramData ackData = DatagramData.convertReceivedToAcknowledgment(data);
         Message ackReply = messageFactory.createToSend(ackData);
         storage.addAcknowledgmentToSend(ackReply);
-        System.out.println("Queued ack " + ackData);
     }
 
-    private void acknowledge(DatagramData ackData) {
+    private boolean acknowledge(DatagramData ackData) {
         DatagramData originalData = DatagramData.convertAcknowledgmentToOriginal(ackData);
         Message originalMessage = messageFactory.createToSend(originalData);
-        storage.acknowledge(originalMessage, ackData);
-        System.out.println("Acknowledged " + ackData);
+        return storage.acknowledge(originalMessage, ackData);
     }
 
     private DatagramPacket doReceive() {

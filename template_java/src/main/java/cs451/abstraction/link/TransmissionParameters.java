@@ -14,7 +14,7 @@ public class TransmissionParameters {
     final private static Duration GRANULARITY = Duration.ofMillis(1);
     final private static double ALPHA = 0.125;
     final private static double BETA = 0.25;
-    final private static int BASE_RTO_MILLIS = 500;
+    final private static int BASE_RETRANSMISSION_TIMEOUT_MILLIS = 2;
     final private static int BACK_OFF_FACTOR = 2;
 
     private Duration sRoundTripTime;
@@ -24,7 +24,7 @@ public class TransmissionParameters {
     public TransmissionParameters() {
         this.sRoundTripTime = null;
         this.roundTripTimeVariance = null;
-        this.retransmissionTimeout = Duration.ofMillis(BASE_RTO_MILLIS);
+        this.retransmissionTimeout = Duration.ofMillis(BASE_RETRANSMISSION_TIMEOUT_MILLIS);
     }
 
     public synchronized Duration getRetransmissionTimeout() {

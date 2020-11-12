@@ -8,11 +8,11 @@ import cs451.parser.Host;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Returning unmodifiable copies of private fields (Set.copyOf):
- * - https://www.baeldung.com/java-immutable-set
- * - https://stackoverflow.com/questions/25704325/return-copies-of-private-data-rather-than-references
+ * Usage of concurrent collections:
+ * -
  */
 public class MessagesStorage {
 
@@ -29,10 +29,11 @@ public class MessagesStorage {
         this.transmissionParametersForHosts = initializeTransmissionParameters(hosts);
 
         int capacity = (int) Math.ceil(SEND_WINDOW_SIZE / LOAD_FACTOR);
-        this.recentUnacknowledgedMessages = Collections.synchronizedMap(new HashMap<>(capacity));
-        this.staleUnacknowledgedMessages = Collections.synchronizedMap(new HashMap<>());
-        this.receivedData = Collections.synchronizedMap(new HashMap<>());
-        this.pendingAcknowledgmentReplies = Collections.synchronizedSet(new HashSet<>());
+        this.recentUnacknowledgedMessages = new ConcurrentHashMap<>(capacity);
+        this.staleUnacknowledgedMessages = new ConcurrentHashMap<>();
+        this.receivedData = new ConcurrentHashMap<>();
+        // Concurrent set: https://stackoverflow.com/a/6992643
+        this.pendingAcknowledgmentReplies = Collections.newSetFromMap(new ConcurrentHashMap<>());
     }
 
     public TransmissionParameters getTransmissionParametersFor(int hostId) {
@@ -46,18 +47,18 @@ public class MessagesStorage {
     }
 
     public Map<Message, TransmissionHistory> getUnacknowledgedMessages() {
-        return Map.copyOf(recentUnacknowledgedMessages);
+        return recentUnacknowledgedMessages;
     }
 
     public Map<Message, TransmissionHistory> getStaleUnacknowledgedMessages() {
-        return Map.copyOf(staleUnacknowledgedMessages);
+        return staleUnacknowledgedMessages;
     }
 
     public Set<Message> getPendingAcknowledgmentReplies() {
-        return Set.copyOf(pendingAcknowledgmentReplies);
+        return pendingAcknowledgmentReplies;
     }
 
-    public synchronized Set<DatagramData> getReceivedData() {
+    public Set<DatagramData> getReceivedData() {
         return receivedData.keySet();
     }
 
@@ -65,11 +66,11 @@ public class MessagesStorage {
         return recentUnacknowledgedMessages.size() < SEND_WINDOW_SIZE;
     }
 
-    public void addUnacknowledgedMessage(Message message) {
-        recentUnacknowledgedMessages.put(message, new TransmissionHistory());
+    public void addUnacknowledgedMessage(Message message, TransmissionHistory history) {
+        recentUnacknowledgedMessages.put(message, history);
     }
 
-    public synchronized void addReceivedData(DatagramData data) {
+    public void addReceivedData(DatagramData data) {
         receivedData.put(data, Instant.now());
     }
 
@@ -85,14 +86,19 @@ public class MessagesStorage {
         data.forEach(receivedData::remove);
     }
 
-    public synchronized void acknowledge(Message originalMessage, DatagramData ackData) {
-        TransmissionHistory history = removeFromUnacknowledged(originalMessage);
-        Instant receivedTime = receivedData.get(ackData);
+    public boolean acknowledge(Message originalMessage, DatagramData ackData) {
+        Optional<TransmissionHistory> optHistory = removeFromUnacknowledged(originalMessage);
 
-        // Karn's algorithm for RTT samples (RFC 6298)
-        if (wasNotRetransmitted(history)) {
-            updateTransmissionParametersForReceiver(originalMessage, history, receivedTime);
-        }
+        optHistory.ifPresent(history -> {
+            Instant receivedTime = receivedData.get(ackData);
+
+            // Karn's algorithm for RTT samples (RFC 6298)
+            if (wasNotRetransmitted(history)) {
+                updateTransmissionParametersForReceiver(originalMessage, history, receivedTime);
+            }
+        });
+
+        return optHistory.isPresent();
     }
 
     private boolean wasNotRetransmitted(TransmissionHistory history) {
@@ -106,16 +112,18 @@ public class MessagesStorage {
         transmissionParameters.updateRetransmissionTimeout(roundTripTimeMeasurement);
     }
 
-    private TransmissionHistory removeFromUnacknowledged(Message originalMessage) {
+    private Optional<TransmissionHistory> removeFromUnacknowledged(Message originalMessage) {
         TransmissionHistory history = recentUnacknowledgedMessages.remove(originalMessage);
         if (history == null) history = staleUnacknowledgedMessages.remove(originalMessage);
-        return history;
+        return Optional.ofNullable(history);
     }
 
     public void moveFromRecentToStale(Set<Message> newStaleMessages) {
         newStaleMessages.forEach(message -> {
             TransmissionHistory history = recentUnacknowledgedMessages.remove(message);
-            staleUnacknowledgedMessages.put(message, history);
+            if (history != null) {
+                staleUnacknowledgedMessages.put(message, history);
+            }
         });
     }
 }
