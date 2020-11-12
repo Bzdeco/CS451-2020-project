@@ -1,38 +1,31 @@
 package cs451;
 
+import cs451.abstraction.Logger;
+import cs451.abstraction.broadcast.BestEffortBroadcast;
 import cs451.abstraction.link.HostResolver;
-import cs451.abstraction.link.MessagesStorage;
-import cs451.abstraction.link.PerfectLink;
-import cs451.abstraction.link.message.Message;
-import cs451.abstraction.link.message.MessageFactory;
 import cs451.parser.Host;
 import cs451.parser.Parser;
 
-import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.IntStream;
 
 public class Main {
 
-    final private static List<Thread> threads = new LinkedList<>();
+    private static Logger logger = new Logger();
+    private static BestEffortBroadcast broadcaster;
 
     private static void handleSignal() {
         //immediately stop network packet processing
         System.out.println("Immediately stopping network packet processing.");
-        threads.forEach(Thread::interrupt);
+        broadcaster.stop();
 
         //write/flush output file if necessary
         System.out.println("Writing output.");
         // TODO: make an additional global object observing broadcast and delivery and writing output
+        // logger.flush()
     }
 
     private static void initSignalHandlers() {
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                handleSignal();
-            }
-        });
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> handleSignal()));
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -61,26 +54,17 @@ public class Main {
             System.out.println("Config: " + parser.config());
         }
 
-        HostResolver hostResolver = new HostResolver(allHosts);
-        Host myself = hostResolver.getHostById(parser.myId());
-        List<Host> otherHosts = createListOfOtherHosts(allHosts, myself);
-        MessagesStorage storage = new MessagesStorage(otherHosts);
-        MessageFactory messageFactory = new MessageFactory(hostResolver);
-        PerfectLink perfectLink = new PerfectLink(myself, hostResolver, storage, messageFactory);
-
-        Thread sendingThread = new Thread(perfectLink::runSendingPackets);
-        Thread receivingThread = new Thread(perfectLink::runReceivingPackets);
-        Thread triagingThread = new Thread(perfectLink::runTriagingReceivedPackets);
-        threads.addAll(List.of(sendingThread, receivingThread, triagingThread));
-
         Coordinator coordinator = new Coordinator(parser.myId(), parser.barrierIp(), parser.barrierPort(), parser.signalIp(), parser.signalPort());
 
-	    System.out.println("Waiting for all processes for finish initialization");
+        broadcaster = new BestEffortBroadcast(parser.myId(), allHosts, new HostResolver(allHosts));
+        broadcaster.registerBroadcastObserver(logger);
+        broadcaster.registerDeliveryObserver(logger);
+
+        System.out.println("Waiting for all processes to finish initialization");
         coordinator.waitOnBarrier();
 
 	    System.out.println("Broadcasting messages...");
-	    threads.forEach(Thread::start);
-	    runBroadcasting(perfectLink, myself, otherHosts, messageFactory, 20);
+	    broadcaster.broadcast(10);
 
 	    System.out.println("Signaling end of broadcasting messages");
         coordinator.finishedBroadcasting();
@@ -89,25 +73,5 @@ public class Main {
             // Sleep for 1 hour
             Thread.sleep(60 * 60 * 1000);
         }
-    }
-
-    private static List<Host> createListOfOtherHosts(List<Host> allHosts, Host myself) {
-        List<Host> hosts = new LinkedList<>(allHosts);
-        hosts.remove(myself);
-        return hosts;
-    }
-
-    private static void runBroadcasting(PerfectLink perfectLink, Host myself, List<Host> otherHosts,
-                                        MessageFactory messageFactory, int numberOfMessages) {
-        int senderHostId = myself.getId();
-        IntStream.range(1, numberOfMessages + 1).forEach(sequenceNumber -> {
-            otherHosts.forEach(receiver -> {
-                Message message = messageFactory.createPayloadMessage(senderHostId, receiver.getId(), sequenceNumber);
-                perfectLink.send(message);
-            });
-            Message selfMessage = messageFactory.createPayloadMessage(senderHostId, senderHostId, sequenceNumber);
-            System.out.println("b " + sequenceNumber);
-            perfectLink.deliver(selfMessage);
-        });
     }
 }

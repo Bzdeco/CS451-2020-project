@@ -1,5 +1,6 @@
 package cs451.abstraction.link;
 
+import cs451.abstraction.Notifier;
 import cs451.abstraction.link.message.DatagramData;
 import cs451.abstraction.link.message.DatagramDataType;
 import cs451.abstraction.link.message.Message;
@@ -12,30 +13,23 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Set;
 
-public class Receiver {
+public class Receiver extends Notifier {
 
     final private static int MAX_BYTES_IN_PACKET = 256; // FIXME: arbitrary
 
     final private DatagramSocket receivingSocket;
     final private MessagesStorage storage;
-    final private HostResolver hostResolver;
     final private MessageFactory messageFactory;
-    final private List<DeliveryObserver> deliveryObservers;
 
-    public Receiver(Host host, MessagesStorage storage, HostResolver hostResolver, MessageFactory messageFactory) {
+
+
+    public Receiver(Host host, MessagesStorage storage, MessageFactory messageFactory) {
+        super();
         this.storage = storage;
         this.receivingSocket = createReceivingSocket(host);
-        this.hostResolver = hostResolver;
         this.messageFactory = messageFactory;
-        this.deliveryObservers = new LinkedList<>();
-    }
-
-    public void registerDeliveryObserver(DeliveryObserver observer) {
-        deliveryObservers.add(observer);
     }
 
     private DatagramSocket createReceivingSocket(Host host) {
@@ -63,7 +57,7 @@ public class Receiver {
 
             if (dataType.equals(DatagramDataType.PAYLOAD)) {
                 queueAcknowledgmentReply(data);
-                deliver(messageFactory.createReceived(data));
+                emitDeliverEvent(messageFactory.createReceived(data));
                 toRemoveFromReceived.add(data);
             } else if (dataType.equals(DatagramDataType.ACK)) {
                 boolean acknowledged = acknowledge(data);
@@ -97,9 +91,5 @@ public class Receiver {
             exc.printStackTrace();
             throw new RuntimeException(exc);
         }
-    }
-
-    private void deliver(Message message) {
-        deliveryObservers.forEach(observer -> observer.notifyOfDelivery(message));
     }
 }

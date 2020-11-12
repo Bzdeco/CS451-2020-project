@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MessagesStorage {
 
     final private static float LOAD_FACTOR = 0.75f;
-    final private static int SEND_WINDOW_SIZE = 10; // FIXME: arbitrary
+    final private static int SEND_WINDOW_SIZE = 20; // FIXME: arbitrary
 
     final private Map<Integer, TransmissionParameters> transmissionParametersForHosts;
     final private Map<Message, TransmissionHistory> recentUnacknowledgedMessages;

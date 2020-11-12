@@ -74,7 +74,6 @@ public class Sender {
         Set<Message> newStaleMessages = new HashSet<>();
         unacknowledgedMessages.forEach((message, history) -> {
             if (isNumberOfRetriesExceeded(history)) {
-                System.out.println("New stale message: " + message.getData());
                 newStaleMessages.add(message);
             }
         });
@@ -91,7 +90,6 @@ public class Sender {
         TransmissionParameters transmissionParameters = storage.getTransmissionParametersFor(receiver.getId());
 
         if (isTimedOut(history, transmissionParameters)) {
-            System.out.println("Resending " + message.getData());
             doSend(message);
             history.markSending();
             transmissionParameters.increaseRetransmissionTimeout();
