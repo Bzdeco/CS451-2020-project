@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class UniformReliableBroadcast extends Notifier implements Broadcaster, Observer {
@@ -21,7 +20,6 @@ public class UniformReliableBroadcast extends Notifier implements Broadcaster, O
 
     final private Set<Payload> delivered;
     final private Set<Payload> pending;
-    final private Map<Payload, AtomicBoolean> canDeliverImmediately;
     final private Map<Payload, Set<Integer>> seenBy;
     final private Map<Payload, AtomicInteger> numberOfHostsThatSeenMessage;
 
@@ -35,7 +33,6 @@ public class UniformReliableBroadcast extends Notifier implements Broadcaster, O
 
         this.seenBy = new ConcurrentHashMap<>();
         this.numberOfHostsThatSeenMessage = new ConcurrentHashMap<>();
-        this.canDeliverImmediately = new ConcurrentHashMap<>();
 
         this.bestEffortBroadcast = new BestEffortBroadcast(hostId, allHosts, new FIFOPayloadFactory(rawPayloadFactory));
         bestEffortBroadcast.registerDeliveryObserver(this);
@@ -51,14 +48,11 @@ public class UniformReliableBroadcast extends Notifier implements Broadcaster, O
     public void notifyOfDelivery(Message message) {
         Payload payload = message.getPayload();
 
-        if (canDeliverImmediately(payload)) {
-            deliver(message);
-        } else {
+        if (isNotDelivered(payload)) {
             recordSenderHaveSeenMessage(message);
-            relay(payload);
+            relayIfNotAlreadyPending(payload);
 
-            if (canDeliver(payload)) {
-                canDeliverImmediately.get(payload).set(true);
+            if (wasSeenByMoreThanHalfHosts(payload)) {
                 deliver(message);
                 cleanUpMemoryAfterDelivering(payload);
             }
@@ -70,15 +64,11 @@ public class UniformReliableBroadcast extends Notifier implements Broadcaster, O
         emitDeliverEvent(message);
     }
 
-    private void relay(Payload payload) {
-        if (!pending.contains(payload)) {
+    private void relayIfNotAlreadyPending(Payload payload) {
+        if (!isPending(payload)) {
             pending.add(payload);
             bestEffortBroadcast.broadcast(payload);
         }
-    }
-
-    private boolean canDeliverImmediately(Payload payload) {
-        return isNotDelivered(payload) && canDeliverImmediately.get(payload).get();
     }
 
     private void recordSenderHaveSeenMessage(Message message) {
@@ -88,10 +78,6 @@ public class UniformReliableBroadcast extends Notifier implements Broadcaster, O
 
         boolean wasAdded = seenBy.get(payload).add(message.getData().getSenderHostId());
         if (wasAdded) numberOfHostsThatSeenMessage.get(payload).incrementAndGet();
-    }
-
-    private boolean canDeliver(Payload payload) {
-        return isPending(payload) && wasSeenByMoreThanHalfHosts(payload) && isNotDelivered(payload);
     }
 
     private boolean isPending(Payload payload) {
@@ -107,7 +93,6 @@ public class UniformReliableBroadcast extends Notifier implements Broadcaster, O
     }
 
     private void cleanUpMemoryAfterDelivering(Payload payload) {
-        canDeliverImmediately.get(payload).set(true);
         numberOfHostsThatSeenMessage.remove(payload);
         seenBy.remove(payload);
     }
