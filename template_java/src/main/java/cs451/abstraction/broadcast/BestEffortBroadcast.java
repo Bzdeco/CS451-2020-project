@@ -9,7 +9,7 @@ import cs451.parser.Host;
 
 import java.util.*;
 
-public class BestEffortBroadcast extends Notifier implements Broadcaster, Observer {
+public class BestEffortBroadcast extends Notifier implements Observer {
 
     final private int hostId;
     final private List<Host> otherHosts;
@@ -36,10 +36,9 @@ public class BestEffortBroadcast extends Notifier implements Broadcaster, Observ
         return hosts;
     }
 
-    @Override
-    public void broadcast(Payload payload) {
+    public void broadcast(Payload payload, boolean isSilentMode) {
         sendToOtherHosts(payload);
-        emitBroadcastEvent(payload);
+        if (!isSilentMode) emitBroadcastEvent(payload);
         sendToMyself(payload); // simply delivers the message to the broadcasting host
     }
 
@@ -60,7 +59,6 @@ public class BestEffortBroadcast extends Notifier implements Broadcaster, Observ
         emitDeliverEvent(message);
     }
 
-    @Override
     public void stop() {
         perfectLink.stopThreads();
     }

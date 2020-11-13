@@ -1,12 +1,8 @@
 package cs451;
 
 import cs451.abstraction.FIFOLogger;
-import cs451.abstraction.broadcast.BestEffortBroadcast;
-import cs451.abstraction.link.HostResolver;
-import cs451.abstraction.link.message.FIFOPayload;
-import cs451.abstraction.link.message.FIFOPayloadFactory;
-import cs451.abstraction.link.message.PayloadFactory;
-import cs451.abstraction.link.message.RawPayloadFactory;
+import cs451.abstraction.broadcast.UniformReliableBroadcast;
+import cs451.abstraction.link.message.*;
 import cs451.parser.Host;
 import cs451.parser.Parser;
 
@@ -16,7 +12,7 @@ import java.util.stream.IntStream;
 public class Main {
 
     private static FIFOLogger logger = new FIFOLogger();
-    private static BestEffortBroadcast broadcaster;
+    private static UniformReliableBroadcast broadcaster;
 
     private static void handleSignal() {
         //immediately stop network packet processing
@@ -64,7 +60,7 @@ public class Main {
 
         RawPayloadFactory rawPayloadFactory = new RawPayloadFactory();
         FIFOPayloadFactory payloadFactory = new FIFOPayloadFactory(rawPayloadFactory);
-        broadcaster = new BestEffortBroadcast(hostId, allHosts, payloadFactory);
+        broadcaster = new UniformReliableBroadcast(hostId, allHosts, payloadFactory);
         broadcaster.registerBroadcastObserver(logger);
         broadcaster.registerDeliveryObserver(logger);
 

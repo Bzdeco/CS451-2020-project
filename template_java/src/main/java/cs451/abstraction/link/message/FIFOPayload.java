@@ -19,6 +19,7 @@ public class FIFOPayload implements Payload {
         return sequenceNumber;
     }
 
+    @Override
     public Payload getPayload() {
         return payload;
     }
@@ -48,5 +49,10 @@ public class FIFOPayload implements Payload {
     @Override
     public int hashCode() {
         return Objects.hash(sequenceNumber, payload);
+    }
+
+    @Override
+    public String toString() {
+        return payload.toString() + " " + sequenceNumber;
     }
 }

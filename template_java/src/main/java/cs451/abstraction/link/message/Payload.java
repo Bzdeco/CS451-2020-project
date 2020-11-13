@@ -5,4 +5,6 @@ public interface Payload {
     byte[] getBytes();
 
     int getSizeInBytes();
+
+    Payload getPayload();
 }

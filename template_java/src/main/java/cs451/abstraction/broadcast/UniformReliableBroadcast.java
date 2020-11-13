@@ -1,73 +1,74 @@
 package cs451.abstraction.broadcast;
 
+import cs451.abstraction.FIFOLogger;
 import cs451.abstraction.Notifier;
 import cs451.abstraction.Observer;
+import cs451.abstraction.link.HostResolver;
 import cs451.abstraction.link.message.*;
 import cs451.parser.Host;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.io.Serializable;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class UniformReliableBroadcast extends Notifier implements Broadcaster, Observer {
+public class UniformReliableBroadcast extends Notifier implements Observer {
 
     final private static AtomicInteger ZERO = new AtomicInteger(0);
 
+    final private int hostId;
     final private int halfN;
 
     final private Set<Payload> delivered;
     final private Set<Payload> pending;
+    final private Set<Payload> toDeliver;
     final private Map<Payload, Set<Integer>> seenBy;
     final private Map<Payload, AtomicInteger> numberOfHostsThatSeenMessage;
 
+    final private MessageFactory messageFactory;
     final private BestEffortBroadcast bestEffortBroadcast;
+    final private Thread deliveryThread = null;
 
-    public UniformReliableBroadcast(int hostId, List<Host> allHosts, PayloadFactory rawPayloadFactory) {
+    public UniformReliableBroadcast(int hostId, List<Host> allHosts, PayloadFactory payloadFactory) {
+        this.hostId = hostId;
         this.halfN = allHosts.size() / 2;
 
         this.delivered = Collections.newSetFromMap(new ConcurrentHashMap<>());
         this.pending = Collections.newSetFromMap(new ConcurrentHashMap<>());
+        this.toDeliver = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
         this.seenBy = new ConcurrentHashMap<>();
         this.numberOfHostsThatSeenMessage = new ConcurrentHashMap<>();
 
-        this.bestEffortBroadcast = new BestEffortBroadcast(hostId, allHosts, new FIFOPayloadFactory(rawPayloadFactory));
+        this.messageFactory = new MessageFactory(new HostResolver(allHosts));
+        this.bestEffortBroadcast = new BestEffortBroadcast(hostId, allHosts, payloadFactory);
         bestEffortBroadcast.registerDeliveryObserver(this);
+
+//        this.deliveryThread = startDeliveryThread();
     }
 
     @Override
-    public void broadcast(Payload payload) {
+    public void registerBroadcastObserver(Observer observer) {
+        bestEffortBroadcast.registerBroadcastObserver(observer);
+    }
+
+    public synchronized void broadcast(Payload payload) {
+        addToPending(payload);
+        bestEffortBroadcast.broadcast(payload, false);
+    }
+
+    private void addToPending(Payload payload) {
         pending.add(payload);
-        bestEffortBroadcast.broadcast(payload);
+        toDeliver.add(payload);
     }
 
     @Override
     public void notifyOfDelivery(Message message) {
         Payload payload = message.getPayload();
 
-        if (isNotDelivered(payload)) {
-            recordSenderHaveSeenMessage(message);
-            relayIfNotAlreadyPending(payload);
-
-            if (wasSeenByMoreThanHalfHosts(payload)) {
-                deliver(message);
-                cleanUpMemoryAfterDelivering(payload);
-            }
-        }
-    }
-
-    private void deliver(Message message) {
-        delivered.add(message.getPayload());
-        emitDeliverEvent(message);
-    }
-
-    private void relayIfNotAlreadyPending(Payload payload) {
+        recordSenderHaveSeenMessage(message);
         if (!isPending(payload)) {
-            pending.add(payload);
-            bestEffortBroadcast.broadcast(payload);
+            relay(payload);
         }
     }
 
@@ -78,6 +79,42 @@ public class UniformReliableBroadcast extends Notifier implements Broadcaster, O
 
         boolean wasAdded = seenBy.get(payload).add(message.getData().getSenderHostId());
         if (wasAdded) numberOfHostsThatSeenMessage.get(payload).incrementAndGet();
+    }
+
+    private synchronized void relay(Payload payload) {
+        addToPending(payload);
+        bestEffortBroadcast.broadcast(payload, true);
+    }
+
+    private void runDelivery() {
+        Set<Payload> toRemove = new HashSet<>();
+
+        toDeliver.forEach(payload -> {
+            if (canDeliver(payload)) {
+                deliver(createDeliveredMessageFromPayload(payload));
+                toRemove.add(payload);
+            }
+        });
+        toDeliver.removeAll(toRemove);
+    }
+
+    private Message createDeliveredMessageFromPayload(Payload payload) {
+        URBPayload urbPayload = unpackURBPayload(payload);
+        return messageFactory.createMessageWithPayload(urbPayload.getOriginalSenderId(), hostId, payload);
+    }
+
+    private URBPayload unpackURBPayload(Payload payload) {
+        if (payload instanceof URBPayload) return (URBPayload) payload;
+        else return unpackURBPayload(payload.getPayload());
+    }
+
+    private void deliver(Message message) {
+        delivered.add(message.getPayload());
+        emitDeliverEvent(message);
+    }
+
+    private boolean canDeliver(Payload payload) {
+        return isPending(payload) && wasSeenByMoreThanHalfHosts(payload) && isNotDelivered(payload);
     }
 
     private boolean isPending(Payload payload) {
@@ -97,8 +134,18 @@ public class UniformReliableBroadcast extends Notifier implements Broadcaster, O
         seenBy.remove(payload);
     }
 
-    @Override
+    private Thread startDeliveryThread() {
+        Thread deliveryThread = new Thread(this::runDelivery);
+        deliveryThread.start();
+        return deliveryThread;
+    }
+
+    private void stopDeliveryThread() {
+        deliveryThread.interrupt();
+    }
+
     public void stop() {
+        stopDeliveryThread();
         bestEffortBroadcast.stop();
     }
 }

@@ -19,6 +19,7 @@ public class URBPayload implements Payload {
         return originalSenderId;
     }
 
+    @Override
     public Payload getPayload() {
         return payload;
     }
@@ -48,5 +49,10 @@ public class URBPayload implements Payload {
     @Override
     public int hashCode() {
         return Objects.hash(originalSenderId, payload);
+    }
+
+    @Override
+    public String toString() {
+        return payload.toString() + " " + originalSenderId;
     }
 }

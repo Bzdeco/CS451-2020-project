@@ -16,11 +16,11 @@ public abstract class Notifier {
         this.broadcastObservers = new LinkedList<>();
     }
 
-    public final void registerDeliveryObserver(Observer observer) {
+    public void registerDeliveryObserver(Observer observer) {
         deliveryObservers.add(observer);
     }
 
-    public final void registerBroadcastObserver(Observer observer) {
+    public void registerBroadcastObserver(Observer observer) {
         broadcastObservers.add(observer);
     }
 
