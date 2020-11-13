@@ -11,8 +11,8 @@ public class MessageFactory {
         this.hostResolver = hostResolver;
     }
 
-    public Message createPayloadMessage(int senderHostId, int receiverHostId, int sequenceNumber) {
-        DatagramData data = new DatagramData(senderHostId, receiverHostId, DatagramDataType.PAYLOAD, sequenceNumber);
+    public Message createMessageWithPayload(int senderHostId, int receiverHostId, Payload payload) {
+        DatagramData data = new DatagramData(senderHostId, receiverHostId, DatagramDataType.PAYLOAD, payload);
         return createToSend(data);
     }
 

@@ -1,16 +1,20 @@
 package cs451;
 
-import cs451.abstraction.Logger;
+import cs451.abstraction.FIFOLogger;
 import cs451.abstraction.broadcast.BestEffortBroadcast;
 import cs451.abstraction.link.HostResolver;
+import cs451.abstraction.link.message.FIFOPayload;
+import cs451.abstraction.link.message.FIFOPayloadFactory;
+import cs451.abstraction.link.message.PayloadFactory;
 import cs451.parser.Host;
 import cs451.parser.Parser;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
 public class Main {
 
-    private static Logger logger = new Logger();
+    private static FIFOLogger logger = new FIFOLogger();
     private static BestEffortBroadcast broadcaster;
 
     private static void handleSignal() {
@@ -25,7 +29,7 @@ public class Main {
     }
 
     private static void initSignalHandlers() {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> handleSignal()));
+        Runtime.getRuntime().addShutdownHook(new Thread(Main::handleSignal));
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -39,7 +43,8 @@ public class Main {
         System.out.println("My PID is " + pid + ".");
         System.out.println("Use 'kill -SIGINT " + pid + " ' or 'kill -SIGTERM " + pid + " ' to stop processing packets.");
 
-        System.out.println("My id is " + parser.myId() + ".");
+        int hostId = parser.myId();
+        System.out.println("My id is " + hostId + ".");
         System.out.println("List of hosts.txt is:");
         List<Host> allHosts = parser.hosts();
         for (Host host: allHosts) {
@@ -54,9 +59,10 @@ public class Main {
             System.out.println("Config: " + parser.config());
         }
 
-        Coordinator coordinator = new Coordinator(parser.myId(), parser.barrierIp(), parser.barrierPort(), parser.signalIp(), parser.signalPort());
+        Coordinator coordinator = new Coordinator(hostId, parser.barrierIp(), parser.barrierPort(), parser.signalIp(), parser.signalPort());
 
-        broadcaster = new BestEffortBroadcast(parser.myId(), allHosts, new HostResolver(allHosts));
+        FIFOPayloadFactory payloadFactory = new FIFOPayloadFactory();
+        broadcaster = new BestEffortBroadcast(hostId, allHosts, new HostResolver(allHosts), payloadFactory);
         broadcaster.registerBroadcastObserver(logger);
         broadcaster.registerDeliveryObserver(logger);
 
@@ -64,7 +70,10 @@ public class Main {
         coordinator.waitOnBarrier();
 
 	    System.out.println("Broadcasting messages...");
-	    broadcaster.broadcast(10);
+        IntStream.range(1, 11).forEach(messageNumber -> {
+            FIFOPayload payload = payloadFactory.create(hostId, messageNumber);
+            broadcaster.broadcast(payload);
+        });
 
 	    System.out.println("Signaling end of broadcasting messages");
         coordinator.finishedBroadcasting();

@@ -5,6 +5,7 @@ import cs451.abstraction.Notifier;
 import cs451.abstraction.link.message.DatagramData;
 import cs451.abstraction.link.message.Message;
 import cs451.abstraction.link.message.MessageFactory;
+import cs451.abstraction.link.message.PayloadFactory;
 import cs451.parser.Host;
 
 import java.util.HashSet;
@@ -25,11 +26,11 @@ public class PerfectLink extends Notifier implements Observer {
 
     final private List<Thread> threads;
 
-    public PerfectLink(Host host, List<Host> allHosts, MessageFactory messageFactory) {
+    public PerfectLink(Host host, List<Host> allHosts, PayloadFactory payloadFactory, MessageFactory messageFactory) {
         MessagesStorage storage = new MessagesStorage(allHosts);
 
         this.sender = new Sender(storage);
-        this.receiver = new Receiver(host, storage, messageFactory);
+        this.receiver = new Receiver(host, storage, payloadFactory, messageFactory);
         receiver.registerDeliveryObserver(this);
         this.delivered = new HashSet<>();
 

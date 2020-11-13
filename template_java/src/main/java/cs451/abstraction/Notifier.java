@@ -1,6 +1,7 @@
 package cs451.abstraction;
 
 import cs451.abstraction.link.message.Message;
+import cs451.abstraction.link.message.Payload;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -28,7 +29,7 @@ public abstract class Notifier {
     }
 
     // TODO: should be data
-    public final void emitBroadcastEvent(int sequenceNumber) {
-        broadcastObservers.forEach(observer -> observer.notifyOfBroadcast(sequenceNumber));
+    public final void emitBroadcastEvent(Payload payload) {
+        broadcastObservers.forEach(observer -> observer.notifyOfBroadcast(payload));
     }
 }

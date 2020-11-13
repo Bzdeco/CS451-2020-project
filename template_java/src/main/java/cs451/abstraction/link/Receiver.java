@@ -1,10 +1,7 @@
 package cs451.abstraction.link;
 
 import cs451.abstraction.Notifier;
-import cs451.abstraction.link.message.DatagramData;
-import cs451.abstraction.link.message.DatagramDataType;
-import cs451.abstraction.link.message.Message;
-import cs451.abstraction.link.message.MessageFactory;
+import cs451.abstraction.link.message.*;
 import cs451.parser.Host;
 
 import java.io.IOException;
@@ -21,14 +18,15 @@ public class Receiver extends Notifier {
 
     final private DatagramSocket receivingSocket;
     final private MessagesStorage storage;
+    final private DatagramDataFactory datagramDataFactory;
     final private MessageFactory messageFactory;
 
-
-
-    public Receiver(Host host, MessagesStorage storage, MessageFactory messageFactory) {
+    public Receiver(Host host, MessagesStorage storage, PayloadFactory payloadFactory,
+                    MessageFactory messageFactory) {
         super();
         this.storage = storage;
         this.receivingSocket = createReceivingSocket(host);
+        this.datagramDataFactory = new DatagramDataFactory(payloadFactory);
         this.messageFactory = messageFactory;
     }
 
@@ -45,7 +43,7 @@ public class Receiver extends Notifier {
 
     public void receive() {
         DatagramPacket receivedPacket = doReceive();
-        DatagramData data = new DatagramData(receivedPacket);
+        DatagramData data = datagramDataFactory.create(receivedPacket);
         storage.addReceivedData(data);
     }
 
