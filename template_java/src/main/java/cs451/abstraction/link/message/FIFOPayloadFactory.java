@@ -4,16 +4,20 @@ import java.nio.ByteBuffer;
 
 public class FIFOPayloadFactory implements PayloadFactory {
 
-    final private URBPayloadFactory urbPayloadFactory = new URBPayloadFactory();
+    final private URBPayloadFactory urbPayloadFactory;
+
+    public FIFOPayloadFactory(PayloadFactory rawPayloadFactory) {
+        this.urbPayloadFactory = new URBPayloadFactory(rawPayloadFactory);
+    }
 
     @Override
     public Payload create(ByteBuffer buffer) {
-        URBPayload urbPayload = urbPayloadFactory.create(buffer);
         int sequenceNumber = buffer.getInt();
-        return new FIFOPayload(urbPayload, sequenceNumber);
+        URBPayload urbPayload = urbPayloadFactory.create(buffer);
+        return new FIFOPayload(sequenceNumber, urbPayload);
     }
 
-    public FIFOPayload create(int senderId, int sequenceNumber) {
-        return new FIFOPayload(new URBPayload(senderId), sequenceNumber);
+    public FIFOPayload create(int senderId, int sequenceNumber, Payload payload) {
+        return new FIFOPayload(sequenceNumber, new URBPayload(senderId, payload));
     }
 }

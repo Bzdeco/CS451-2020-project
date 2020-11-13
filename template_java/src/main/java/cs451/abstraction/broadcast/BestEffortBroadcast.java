@@ -9,17 +9,19 @@ import cs451.parser.Host;
 
 import java.util.*;
 
-public class BestEffortBroadcast extends Notifier implements Observer {
+public class BestEffortBroadcast extends Notifier implements Broadcaster, Observer {
 
     final private int hostId;
     final private List<Host> otherHosts;
     final private MessageFactory messageFactory;
     final private PerfectLink perfectLink;
 
-    public BestEffortBroadcast(int hostId, List<Host> allHosts, HostResolver hostResolver, PayloadFactory payloadFactory) {
+    public BestEffortBroadcast(int hostId, List<Host> allHosts, PayloadFactory payloadFactory) {
         super();
-        this.hostId = hostId;
+        HostResolver hostResolver = new HostResolver(allHosts);
         Host host = hostResolver.getHostById(hostId);
+
+        this.hostId = hostId;
         this.otherHosts = createListOfOtherHosts(host, allHosts);
         this.messageFactory = new MessageFactory(hostResolver);
 
@@ -34,20 +36,21 @@ public class BestEffortBroadcast extends Notifier implements Observer {
         return hosts;
     }
 
-    public void broadcast(URBPayload payload) {
+    @Override
+    public void broadcast(Payload payload) {
         sendToOtherHosts(payload);
         emitBroadcastEvent(payload);
         sendToMyself(payload); // simply delivers the message to the broadcasting host
     }
 
-    private void sendToOtherHosts(URBPayload payload) {
+    private void sendToOtherHosts(Payload payload) {
         otherHosts.forEach(receiver -> {
             Message message = messageFactory.createMessageWithPayload(hostId, receiver.getId(), payload);
             perfectLink.send(message);
         });
     }
 
-    private void sendToMyself(URBPayload payload) {
+    private void sendToMyself(Payload payload) {
         Message selfMessage = messageFactory.createMessageWithPayload(hostId, hostId, payload);
         notifyOfDelivery(selfMessage);
     }
@@ -57,6 +60,7 @@ public class BestEffortBroadcast extends Notifier implements Observer {
         emitDeliverEvent(message);
     }
 
+    @Override
     public void stop() {
         perfectLink.stopThreads();
     }

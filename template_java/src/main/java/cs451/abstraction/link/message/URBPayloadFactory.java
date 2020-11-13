@@ -4,9 +4,16 @@ import java.nio.ByteBuffer;
 
 public class URBPayloadFactory implements PayloadFactory {
 
+    final private PayloadFactory payloadFactory;
+
+    public URBPayloadFactory(PayloadFactory payloadFactory) {
+        this.payloadFactory = payloadFactory;
+    }
+
     @Override
     public URBPayload create(ByteBuffer buffer) {
         int originalSenderId = buffer.getInt();
-        return new URBPayload(originalSenderId);
+        Payload payload = payloadFactory.create(buffer);
+        return new URBPayload(originalSenderId, payload);
     }
 }

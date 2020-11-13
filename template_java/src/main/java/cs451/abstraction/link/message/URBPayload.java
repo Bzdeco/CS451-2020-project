@@ -5,41 +5,35 @@ import java.util.Objects;
 
 public class URBPayload implements Payload {
 
-    final private int properSizeInBytes = Integer.BYTES;
+    final private static int HEADER_BYTE_SIZE = Integer.BYTES;
+
     final private int originalSenderId;
+    final private Payload payload;
 
-    public URBPayload(int originalSenderId) {
+    public URBPayload(int originalSenderId, Payload payload) {
         this.originalSenderId = originalSenderId;
-    }
-
-    protected URBPayload(URBPayload urbPayload) {
-        this.originalSenderId = urbPayload.getOriginalSenderId();
+        this.payload = payload;
     }
 
     public int getOriginalSenderId() {
         return originalSenderId;
     }
 
+    public Payload getPayload() {
+        return payload;
+    }
+
     @Override
     public byte[] getBytes() {
-        ByteBuffer buffer = ByteBuffer.allocate(properSizeInBytes);
+        ByteBuffer buffer = ByteBuffer.allocate(HEADER_BYTE_SIZE + payload.getSizeInBytes());
         buffer.putInt(originalSenderId);
+        buffer.put(payload.getBytes());
         return buffer.array();
     }
 
     @Override
     public int getSizeInBytes() {
-        return properSizeInBytes;
-    }
-
-    @Override
-    public Payload decode(ByteBuffer buffer) {
-        return concreteDecode(buffer);
-    }
-
-    protected URBPayload concreteDecode(ByteBuffer buffer) {
-        int originalSenderId = buffer.getInt();
-        return new URBPayload(originalSenderId);
+        return HEADER_BYTE_SIZE + payload.getSizeInBytes();
     }
 
     @Override
@@ -47,11 +41,12 @@ public class URBPayload implements Payload {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         URBPayload that = (URBPayload) o;
-        return originalSenderId == that.originalSenderId;
+        return originalSenderId == that.originalSenderId &&
+                payload.equals(that.payload);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(originalSenderId);
+        return Objects.hash(originalSenderId, payload);
     }
 }

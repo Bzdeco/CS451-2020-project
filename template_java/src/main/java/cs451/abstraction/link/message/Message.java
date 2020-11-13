@@ -39,6 +39,10 @@ public class Message {
         return data;
     }
 
+    public Payload getPayload() {
+        return getData().getPayload();
+    }
+
     public DatagramPacket toSentPacket() {
         byte[] messageBytes = getData().convertToBytes();
         Host receiver = getReceiver();

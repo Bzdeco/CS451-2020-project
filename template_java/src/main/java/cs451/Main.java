@@ -6,6 +6,7 @@ import cs451.abstraction.link.HostResolver;
 import cs451.abstraction.link.message.FIFOPayload;
 import cs451.abstraction.link.message.FIFOPayloadFactory;
 import cs451.abstraction.link.message.PayloadFactory;
+import cs451.abstraction.link.message.RawPayloadFactory;
 import cs451.parser.Host;
 import cs451.parser.Parser;
 
@@ -61,8 +62,9 @@ public class Main {
 
         Coordinator coordinator = new Coordinator(hostId, parser.barrierIp(), parser.barrierPort(), parser.signalIp(), parser.signalPort());
 
-        FIFOPayloadFactory payloadFactory = new FIFOPayloadFactory();
-        broadcaster = new BestEffortBroadcast(hostId, allHosts, new HostResolver(allHosts), payloadFactory);
+        RawPayloadFactory rawPayloadFactory = new RawPayloadFactory();
+        FIFOPayloadFactory payloadFactory = new FIFOPayloadFactory(rawPayloadFactory);
+        broadcaster = new BestEffortBroadcast(hostId, allHosts, payloadFactory);
         broadcaster.registerBroadcastObserver(logger);
         broadcaster.registerDeliveryObserver(logger);
 
@@ -70,8 +72,9 @@ public class Main {
         coordinator.waitOnBarrier();
 
 	    System.out.println("Broadcasting messages...");
+	    // TODO number of messages from config
         IntStream.range(1, 11).forEach(messageNumber -> {
-            FIFOPayload payload = payloadFactory.create(hostId, messageNumber);
+            FIFOPayload payload = payloadFactory.create(hostId, messageNumber, rawPayloadFactory.create(null));
             broadcaster.broadcast(payload);
         });
 
