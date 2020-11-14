@@ -8,17 +8,16 @@ import cs451.abstraction.link.message.MessageFactory;
 import cs451.abstraction.link.message.PayloadFactory;
 import cs451.parser.Host;
 
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Observer design pattern for registering deliveries: https://en.wikipedia.org/wiki/Observer_pattern
  */
 public class PerfectLink extends Notifier implements Observer {
 
-    private static final int SENDING_SLEEP_MILLIS = 10;
+    final private static int SENDING_BACKOFF = 2;
+    final private static int SENDING_SLEEP_TIME = 100;
 
     final private Sender sender;
     final private Receiver receiver;
@@ -32,7 +31,7 @@ public class PerfectLink extends Notifier implements Observer {
         this.sender = new Sender(storage);
         this.receiver = new Receiver(host, storage, payloadFactory, messageFactory);
         receiver.registerDeliveryObserver(this);
-        this.delivered = new HashSet<>();
+        this.delivered = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
         this.threads = new LinkedList<>();
     }
@@ -42,12 +41,16 @@ public class PerfectLink extends Notifier implements Observer {
 
         while (!wasSent) {
             try {
-                Thread.sleep(SENDING_SLEEP_MILLIS);
+                Thread.sleep(SENDING_SLEEP_TIME);
                 wasSent = sender.send(message);
             } catch (InterruptedException exc) {
                 return;
             }
         }
+    }
+
+    public void queueForSending(Message message) {
+        sender.queueForSending(message);
     }
 
     @Override
@@ -60,7 +63,7 @@ public class PerfectLink extends Notifier implements Observer {
     }
 
     public void startThreads() {
-        Thread sendingThread = new Thread(this::runRetransmittingAndAcknowledging);
+        Thread sendingThread = new Thread(this::runSendingAndAcknowledging);
         Thread receivingThread = new Thread(this::runReceivingPackets);
         Thread triagingThread = new Thread(this::runTriagingReceivedPackets);
         threads.addAll(List.of(sendingThread, receivingThread, triagingThread));
@@ -71,8 +74,9 @@ public class PerfectLink extends Notifier implements Observer {
         threads.forEach(Thread::interrupt);
     }
 
-    private void runRetransmittingAndAcknowledging() {
+    private void runSendingAndAcknowledging() {
         while (!Thread.interrupted()) {
+            sender.sendPendingMessages();
             sender.retransmitUnacknowledgedMessages();
             sender.processPendingAcknowledgmentReplies();
         }

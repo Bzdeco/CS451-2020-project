@@ -36,16 +36,18 @@ public class BestEffortBroadcast extends Notifier implements Observer {
         return hosts;
     }
 
-    public void broadcast(Payload payload, boolean isSilentMode) {
-        sendToOtherHosts(payload);
-        if (!isSilentMode) emitBroadcastEvent(payload);
+    public void broadcast(Payload payload, boolean isBroadcastThroughQueue) {
+        sendToOtherHosts(payload, isBroadcastThroughQueue);
+        // message might not have been physically sent, but it's queued for sending and guaranteed to be sent by PL
+        emitBroadcastEvent(payload);
         sendToMyself(payload); // simply delivers the message to the broadcasting host
     }
 
-    private void sendToOtherHosts(Payload payload) {
+    private void sendToOtherHosts(Payload payload, boolean isBroadcastThroughQueue) {
         otherHosts.forEach(receiver -> {
             Message message = messageFactory.createMessageWithPayload(hostId, receiver.getId(), payload);
-            perfectLink.send(message);
+            if (!isBroadcastThroughQueue) perfectLink.send(message);
+            else perfectLink.queueForSending(message); // to keep sending in one thread
         });
     }
 

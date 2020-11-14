@@ -69,7 +69,7 @@ public class Main {
 
 	    System.out.println("Broadcasting messages...");
 	    // TODO number of messages from config
-        IntStream.range(1, 11).forEach(messageNumber -> {
+        IntStream.range(1, 151).forEach(messageNumber -> {
             FIFOPayload payload = payloadFactory.create(hostId, messageNumber, rawPayloadFactory.create(null));
             broadcaster.broadcast(payload);
         });

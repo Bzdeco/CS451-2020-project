@@ -14,8 +14,9 @@ public class TransmissionParameters {
     final private static Duration GRANULARITY = Duration.ofMillis(1);
     final private static double ALPHA = 0.125;
     final private static double BETA = 0.25;
-    final private static int BASE_RETRANSMISSION_TIMEOUT_MILLIS = 2;
     final private static int BACK_OFF_FACTOR = 2;
+    final private static Duration BASE_RETRANSMISSION_TIMEOUT = Duration.ofMillis(100);
+    final private static Duration MAX_RETRANSMISSION_TIMEOUT = Duration.ofHours(1);
 
     private Duration sRoundTripTime;
     private Duration roundTripTimeVariance;
@@ -24,15 +25,25 @@ public class TransmissionParameters {
     public TransmissionParameters() {
         this.sRoundTripTime = null;
         this.roundTripTimeVariance = null;
-        this.retransmissionTimeout = Duration.ofMillis(BASE_RETRANSMISSION_TIMEOUT_MILLIS);
+        this.retransmissionTimeout = BASE_RETRANSMISSION_TIMEOUT;
     }
 
-    public synchronized Duration getRetransmissionTimeout() {
-        return retransmissionTimeout;
+    public synchronized Duration getRetransmissionTimeout(boolean isStale) {
+        if (isStale) {
+            return retransmissionTimeout;
+        } else {
+            if (retransmissionTimeout.compareTo(BASE_RETRANSMISSION_TIMEOUT) < 0) return retransmissionTimeout;
+            else return BASE_RETRANSMISSION_TIMEOUT;
+        }
     }
 
     public synchronized void increaseRetransmissionTimeout() {
-        this.retransmissionTimeout = retransmissionTimeout.multipliedBy(BACK_OFF_FACTOR);
+        Duration newRetransmissionTimeout = retransmissionTimeout.multipliedBy(BACK_OFF_FACTOR);
+        if (newRetransmissionTimeout.compareTo(MAX_RETRANSMISSION_TIMEOUT) < 0) {
+            this.retransmissionTimeout = newRetransmissionTimeout;
+        } else {
+            this.retransmissionTimeout = MAX_RETRANSMISSION_TIMEOUT;
+        }
     }
 
     public synchronized void updateRetransmissionTimeout(Duration roundTripTimeMeasurement) {
@@ -46,11 +57,11 @@ public class TransmissionParameters {
         retransmissionTimeout = computeUpdatedRetransmissionTimeout();
     }
 
-    private boolean isFirstUpdate() {
+    private synchronized boolean isFirstUpdate() {
         return this.sRoundTripTime == null && this.roundTripTimeVariance == null;
     }
 
-    private Duration computeRoundTripTimeVariance(Duration roundTripTimeMeasurement) {
+    private synchronized Duration computeRoundTripTimeVariance(Duration roundTripTimeMeasurement) {
         long RTTVarMillis = roundTripTimeVariance.toMillis();
         long sRTTMillis = sRoundTripTime.toMillis();
         long RTTMeasurementMillis = roundTripTimeMeasurement.toMillis();
@@ -59,7 +70,7 @@ public class TransmissionParameters {
         return Duration.ofMillis(newRTTMillis);
     }
 
-    private Duration computeSRoundTripTime(Duration roundTripTimeMeasurement) {
+    private synchronized Duration computeSRoundTripTime(Duration roundTripTimeMeasurement) {
         long sRTTMillis = sRoundTripTime.toMillis();
         long RTTMeasurementMillis = roundTripTimeMeasurement.toMillis();
 
@@ -67,11 +78,11 @@ public class TransmissionParameters {
         return Duration.ofMillis(newRTTMillis);
     }
 
-    private Duration computeUpdatedRetransmissionTimeout() {
+    private synchronized Duration computeUpdatedRetransmissionTimeout() {
         return sRoundTripTime.plus(maxOfGranularityAnd(roundTripTimeVariance.multipliedBy(K)));
     }
 
-    private Duration maxOfGranularityAnd(Duration duration) {
+    private synchronized Duration maxOfGranularityAnd(Duration duration) {
         int comparison = duration.compareTo(GRANULARITY);
         if (comparison < 0) {
             return GRANULARITY;

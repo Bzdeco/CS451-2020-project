@@ -45,6 +45,10 @@ public class Sender {
         return false;
     }
 
+    public void queueForSending(Message message) {
+        storage.queueForSending(message);
+    }
+
     private void doSend(Message message) {
         try {
             sendingSocket.send(message.toSentPacket());
@@ -55,10 +59,19 @@ public class Sender {
         }
     }
 
+    public void sendPendingMessages() {
+        Set<Message> successfullySent = new HashSet<>();
+        storage.getMessagesToSend().forEach(message -> {
+            boolean wasSent = send(message);
+            if (wasSent) successfullySent.add(message);
+        });
+        storage.removeFromToSend(successfullySent);
+    }
+
     public void processPendingAcknowledgmentReplies() {
-        Set<Message> toSend = storage.getPendingAcknowledgmentReplies();
-        toSend.forEach(this::doSend);
-        storage.removeFromPendingAcknowledgmentReplies(toSend);
+        Set<Message> pendingAckReply = storage.getPendingAcknowledgmentReplies();
+        pendingAckReply.forEach(this::doSend);
+        storage.removeFromPendingAcknowledgmentReplies(pendingAckReply);
     }
 
     public void retransmitUnacknowledgedMessages() {
@@ -69,7 +82,7 @@ public class Sender {
     private void retransmitRecentUnacknowledgedMessages() {
         Map<Message, TransmissionHistory> unacknowledgedMessages = storage.getUnacknowledgedMessages();
 
-        unacknowledgedMessages.forEach(this::resendIfTimedOut);
+        unacknowledgedMessages.forEach(((message, history) -> resendIfTimedOut(message, history, false)));
 
         Set<Message> newStaleMessages = new HashSet<>();
         unacknowledgedMessages.forEach((message, history) -> {
@@ -82,23 +95,24 @@ public class Sender {
     }
 
     private void retransmitStaleMessages() {
-        storage.getStaleUnacknowledgedMessages().forEach(this::resendIfTimedOut);
+        storage.getStaleUnacknowledgedMessages().forEach(((message, history) -> resendIfTimedOut(message, history, true)));
     }
 
-    private void resendIfTimedOut(Message message, TransmissionHistory history) {
+    private synchronized void resendIfTimedOut(Message message, TransmissionHistory history, boolean isStaleMessage) {
         Host receiver = message.getReceiver();
         TransmissionParameters transmissionParameters = storage.getTransmissionParametersFor(receiver.getId());
 
-        if (isTimedOut(history, transmissionParameters)) {
+        if (isTimedOut(history, transmissionParameters, isStaleMessage)) {
             doSend(message);
             history.markSending();
             transmissionParameters.increaseRetransmissionTimeout();
         }
     }
 
-    private boolean isTimedOut(TransmissionHistory history, TransmissionParameters receiverTransmissionParameters) {
+    private boolean isTimedOut(TransmissionHistory history, TransmissionParameters receiverTransmissionParameters,
+                               boolean isStaleMessage) {
         Duration elapsedTime = Duration.between(history.getSendTime(), Instant.now());
-        return elapsedTime.compareTo(receiverTransmissionParameters.getRetransmissionTimeout()) > 0;
+        return elapsedTime.compareTo(receiverTransmissionParameters.getRetransmissionTimeout(isStaleMessage)) > 0;
     }
 
     private boolean isNumberOfRetriesExceeded(TransmissionHistory history) {

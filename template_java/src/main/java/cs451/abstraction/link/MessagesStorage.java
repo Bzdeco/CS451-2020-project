@@ -20,6 +20,7 @@ public class MessagesStorage {
     final private static int SEND_WINDOW_SIZE = 20; // FIXME: arbitrary
 
     final private Map<Integer, TransmissionParameters> transmissionParametersForHosts;
+    final private Set<Message> toSend;
     final private Map<Message, TransmissionHistory> recentUnacknowledgedMessages;
     final private Map<Message, TransmissionHistory> staleUnacknowledgedMessages;
     final private Map<DatagramData, Instant> receivedData;
@@ -28,6 +29,7 @@ public class MessagesStorage {
     public MessagesStorage(List<Host> hosts) {
         this.transmissionParametersForHosts = initializeTransmissionParameters(hosts);
 
+        this.toSend = Collections.newSetFromMap(new ConcurrentHashMap<>());
         int capacity = (int) Math.ceil(SEND_WINDOW_SIZE / LOAD_FACTOR);
         this.recentUnacknowledgedMessages = new ConcurrentHashMap<>(capacity);
         this.staleUnacknowledgedMessages = new ConcurrentHashMap<>();
@@ -41,9 +43,13 @@ public class MessagesStorage {
     }
 
     private Map<Integer, TransmissionParameters> initializeTransmissionParameters(List<Host> hosts) {
-        Map<Integer, TransmissionParameters> transmissionParametersForHosts = new HashMap<>();
+        Map<Integer, TransmissionParameters> transmissionParametersForHosts = new ConcurrentHashMap<>();
         hosts.forEach(host -> transmissionParametersForHosts.put(host.getId(), new TransmissionParameters()));
-        return Collections.synchronizedMap(transmissionParametersForHosts);
+        return transmissionParametersForHosts;
+    }
+
+    public Set<Message> getMessagesToSend() {
+        return toSend;
     }
 
     public Map<Message, TransmissionHistory> getUnacknowledgedMessages() {
@@ -62,6 +68,10 @@ public class MessagesStorage {
         return receivedData.keySet();
     }
 
+    public void queueForSending(Message message) {
+        toSend.add(message);
+    }
+
     public boolean canSendMessageImmediately() {
         return recentUnacknowledgedMessages.size() < SEND_WINDOW_SIZE;
     }
@@ -76,6 +86,10 @@ public class MessagesStorage {
 
     public void addAcknowledgmentToSend(Message ackReply) {
         pendingAcknowledgmentReplies.add(ackReply);
+    }
+
+    public void removeFromToSend(Set<Message> messages) {
+        toSend.removeAll(messages);
     }
 
     public void removeFromPendingAcknowledgmentReplies(Set<Message> messages) {
@@ -105,7 +119,8 @@ public class MessagesStorage {
         return history.getRetries() == 0;
     }
 
-    private void updateTransmissionParametersForReceiver(Message originalMessage, TransmissionHistory history, Instant receivedTime) {
+    private synchronized void updateTransmissionParametersForReceiver(Message originalMessage, TransmissionHistory history,
+                                                          Instant receivedTime) {
         Host receiver = originalMessage.getReceiver();
         Duration roundTripTimeMeasurement = Duration.between(history.getSendTime(), receivedTime);
         TransmissionParameters transmissionParameters = transmissionParametersForHosts.get(receiver.getId());

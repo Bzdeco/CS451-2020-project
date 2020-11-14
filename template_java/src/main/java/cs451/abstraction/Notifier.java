@@ -28,7 +28,6 @@ public abstract class Notifier {
         deliveryObservers.forEach(observer -> observer.notifyOfDelivery(message));
     }
 
-    // TODO: should be data
     public final void emitBroadcastEvent(Payload payload) {
         broadcastObservers.forEach(observer -> observer.notifyOfBroadcast(payload));
     }

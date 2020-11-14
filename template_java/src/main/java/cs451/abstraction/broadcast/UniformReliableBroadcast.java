@@ -1,13 +1,11 @@
 package cs451.abstraction.broadcast;
 
-import cs451.abstraction.FIFOLogger;
 import cs451.abstraction.Notifier;
 import cs451.abstraction.Observer;
 import cs451.abstraction.link.HostResolver;
 import cs451.abstraction.link.message.*;
 import cs451.parser.Host;
 
-import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,7 +15,7 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
     final private static AtomicInteger ZERO = new AtomicInteger(0);
 
     final private int hostId;
-    final private int halfN;
+    final private int halfNumberOfHosts;
 
     final private Set<Payload> delivered;
     final private Set<Payload> pending;
@@ -27,11 +25,11 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
 
     final private MessageFactory messageFactory;
     final private BestEffortBroadcast bestEffortBroadcast;
-    final private Thread deliveryThread = null;
+    final private Thread deliveryThread;
 
     public UniformReliableBroadcast(int hostId, List<Host> allHosts, PayloadFactory payloadFactory) {
         this.hostId = hostId;
-        this.halfN = allHosts.size() / 2;
+        this.halfNumberOfHosts = allHosts.size() / 2;
 
         this.delivered = Collections.newSetFromMap(new ConcurrentHashMap<>());
         this.pending = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -43,16 +41,12 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
         this.messageFactory = new MessageFactory(new HostResolver(allHosts));
         this.bestEffortBroadcast = new BestEffortBroadcast(hostId, allHosts, payloadFactory);
         bestEffortBroadcast.registerDeliveryObserver(this);
+        bestEffortBroadcast.registerBroadcastObserver(this);
 
-//        this.deliveryThread = startDeliveryThread();
+        this.deliveryThread = startDeliveryThread();
     }
 
-    @Override
-    public void registerBroadcastObserver(Observer observer) {
-        bestEffortBroadcast.registerBroadcastObserver(observer);
-    }
-
-    public synchronized void broadcast(Payload payload) {
+    public void broadcast(Payload payload) {
         addToPending(payload);
         bestEffortBroadcast.broadcast(payload, false);
     }
@@ -60,6 +54,14 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
     private void addToPending(Payload payload) {
         pending.add(payload);
         toDeliver.add(payload);
+    }
+
+    @Override
+    public void notifyOfBroadcast(Payload payload) {
+        URBPayload urbPayload = unpackURBPayload(payload);
+        if (urbPayload.getOriginalSenderId() == hostId) {
+            emitBroadcastEvent(payload);
+        }
     }
 
     @Override
@@ -81,12 +83,18 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
         if (wasAdded) numberOfHostsThatSeenMessage.get(payload).incrementAndGet();
     }
 
-    private synchronized void relay(Payload payload) {
+    private void relay(Payload payload) {
         addToPending(payload);
         bestEffortBroadcast.broadcast(payload, true);
     }
 
     private void runDelivery() {
+        while (!Thread.interrupted()) {
+            processDeliveries();
+        }
+    }
+
+    private void processDeliveries() {
         Set<Payload> toRemove = new HashSet<>();
 
         toDeliver.forEach(payload -> {
@@ -126,7 +134,7 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
     }
 
     private boolean wasSeenByMoreThanHalfHosts(Payload payload) {
-        return numberOfHostsThatSeenMessage.getOrDefault(payload, ZERO).get() > halfN;
+        return numberOfHostsThatSeenMessage.getOrDefault(payload, ZERO).get() > halfNumberOfHosts;
     }
 
     private void cleanUpMemoryAfterDelivering(Payload payload) {
