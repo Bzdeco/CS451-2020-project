@@ -3,7 +3,8 @@ package cs451.abstraction.link.message;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-public class FIFOPayload implements Payload {
+// see: https://qr.ae/pNUv2m on Comparable use
+public class FIFOPayload implements Comparable<FIFOPayload>, Payload {
 
     final private static int HEADER_BYTE_SIZE = Integer.BYTES;
 
@@ -54,5 +55,10 @@ public class FIFOPayload implements Payload {
     @Override
     public String toString() {
         return payload.toString() + " " + sequenceNumber;
+    }
+
+    @Override
+    public int compareTo(FIFOPayload other) {
+        return this.sequenceNumber - other.getSequenceNumber();
     }
 }

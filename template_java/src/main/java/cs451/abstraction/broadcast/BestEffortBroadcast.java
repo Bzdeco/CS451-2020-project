@@ -36,10 +36,10 @@ public class BestEffortBroadcast extends Notifier implements Observer {
         return hosts;
     }
 
-    public void broadcast(Payload payload, boolean isBroadcastThroughQueue) {
-        sendToOtherHosts(payload, isBroadcastThroughQueue);
+    public void broadcast(Payload payload, boolean isRelay) {
+        sendToOtherHosts(payload, isRelay);
         // message might not have been physically sent, but it's queued for sending and guaranteed to be sent by PL
-        emitBroadcastEvent(payload);
+        if (!isRelay) emitBroadcastEvent(payload);
         sendToMyself(payload); // simply delivers the message to the broadcasting host
     }
 

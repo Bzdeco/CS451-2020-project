@@ -9,6 +9,7 @@ import cs451.parser.Host;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 public class UniformReliableBroadcast extends Notifier implements Observer {
 
@@ -19,6 +20,7 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
 
     final private Set<Payload> delivered;
     final private Set<Payload> pending;
+    final private Set<Payload> doneBroadcast;
     final private Set<Payload> toDeliver;
     final private Map<Payload, Set<Integer>> seenBy;
     final private Map<Payload, AtomicInteger> numberOfHostsThatSeenMessage;
@@ -33,6 +35,7 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
 
         this.delivered = Collections.newSetFromMap(new ConcurrentHashMap<>());
         this.pending = Collections.newSetFromMap(new ConcurrentHashMap<>());
+        this.doneBroadcast = Collections.newSetFromMap(new ConcurrentHashMap<>());
         this.toDeliver = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
         this.seenBy = new ConcurrentHashMap<>();
@@ -49,6 +52,7 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
     public void broadcast(Payload payload) {
         addToPending(payload);
         bestEffortBroadcast.broadcast(payload, false);
+        doneBroadcast.add(payload);
     }
 
     private void addToPending(Payload payload) {
@@ -58,7 +62,7 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
 
     @Override
     public void notifyOfBroadcast(Payload payload) {
-        URBPayload urbPayload = unpackURBPayload(payload);
+        URBPayload urbPayload = URBPayload.unpackURBPayload(payload);
         if (urbPayload.getOriginalSenderId() == hostId) {
             emitBroadcastEvent(payload);
         }
@@ -97,23 +101,31 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
     private void processDeliveries() {
         Set<Payload> toRemove = new HashSet<>();
 
+//        long selfToDeliver = toDeliver.stream().filter(this::isOfOwnOrigin).count();
+//        System.out.println("self tD " + selfToDeliver);
         toDeliver.forEach(payload -> {
-            if (canDeliver(payload)) {
+            // own origin messages should not be delivered through the relayed broadcast from the network
+            boolean isOfOwnOrigin = isOfOwnOrigin(payload);
+            boolean isOfOwnOriginAndBroadcast = isOfOwnOrigin && doneBroadcast.contains(payload);
+
+//            if (isOfOwnOriginAndBroadcast) {
+//                System.out.println(seenBy.get(payload));
+//            }
+
+            if (canDeliver(payload) && (!isOfOwnOrigin || isOfOwnOriginAndBroadcast)) {
                 deliver(createDeliveredMessageFromPayload(payload));
                 toRemove.add(payload);
+                if (isOfOwnOriginAndBroadcast) {
+                    doneBroadcast.remove(payload);
+                }
             }
         });
         toDeliver.removeAll(toRemove);
     }
 
     private Message createDeliveredMessageFromPayload(Payload payload) {
-        URBPayload urbPayload = unpackURBPayload(payload);
+        URBPayload urbPayload = URBPayload.unpackURBPayload(payload);
         return messageFactory.createMessageWithPayload(urbPayload.getOriginalSenderId(), hostId, payload);
-    }
-
-    private URBPayload unpackURBPayload(Payload payload) {
-        if (payload instanceof URBPayload) return (URBPayload) payload;
-        else return unpackURBPayload(payload.getPayload());
     }
 
     private void deliver(Message message) {
@@ -137,9 +149,9 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
         return numberOfHostsThatSeenMessage.getOrDefault(payload, ZERO).get() > halfNumberOfHosts;
     }
 
-    private void cleanUpMemoryAfterDelivering(Payload payload) {
-        numberOfHostsThatSeenMessage.remove(payload);
-        seenBy.remove(payload);
+    private boolean isOfOwnOrigin(Payload payload) {
+        URBPayload urbPayload = URBPayload.unpackURBPayload(payload);
+        return urbPayload.getOriginalSenderId() == hostId;
     }
 
     private Thread startDeliveryThread() {

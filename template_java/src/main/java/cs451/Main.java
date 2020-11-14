@@ -1,6 +1,7 @@
 package cs451;
 
 import cs451.abstraction.FIFOLogger;
+import cs451.abstraction.broadcast.FIFOUniformReliableBroadcast;
 import cs451.abstraction.broadcast.UniformReliableBroadcast;
 import cs451.abstraction.link.message.*;
 import cs451.parser.Host;
@@ -12,7 +13,7 @@ import java.util.stream.IntStream;
 public class Main {
 
     private static FIFOLogger logger = new FIFOLogger();
-    private static UniformReliableBroadcast broadcaster;
+    private static FIFOUniformReliableBroadcast broadcaster;
 
     private static void handleSignal() {
         //immediately stop network packet processing
@@ -59,8 +60,7 @@ public class Main {
         Coordinator coordinator = new Coordinator(hostId, parser.barrierIp(), parser.barrierPort(), parser.signalIp(), parser.signalPort());
 
         RawPayloadFactory rawPayloadFactory = new RawPayloadFactory();
-        FIFOPayloadFactory payloadFactory = new FIFOPayloadFactory(rawPayloadFactory);
-        broadcaster = new UniformReliableBroadcast(hostId, allHosts, payloadFactory);
+        broadcaster = new FIFOUniformReliableBroadcast(hostId, allHosts, rawPayloadFactory);
         broadcaster.registerBroadcastObserver(logger);
         broadcaster.registerDeliveryObserver(logger);
 
@@ -69,10 +69,7 @@ public class Main {
 
 	    System.out.println("Broadcasting messages...");
 	    // TODO number of messages from config
-        IntStream.range(1, 151).forEach(messageNumber -> {
-            FIFOPayload payload = payloadFactory.create(hostId, messageNumber, rawPayloadFactory.create(null));
-            broadcaster.broadcast(payload);
-        });
+        IntStream.range(1, 151).forEach(messageNumber -> broadcaster.broadcast(rawPayloadFactory.create(null)));
 
 	    System.out.println("Signaling end of broadcasting messages");
         coordinator.finishedBroadcasting();

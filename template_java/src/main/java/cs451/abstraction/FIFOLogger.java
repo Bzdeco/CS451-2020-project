@@ -12,6 +12,10 @@ public class FIFOLogger implements Observer {
 
     @Override
     public void notifyOfDelivery(Message message) {
+        logDelivery(message);
+    }
+
+    private void logDelivery(Message message) {
         Payload payload = message.getPayload();
         FIFOPayload fifoPayload = (FIFOPayload) payload;
         URBPayload urbPayload = (URBPayload) fifoPayload.getPayload();

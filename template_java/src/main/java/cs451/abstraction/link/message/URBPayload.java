@@ -53,6 +53,11 @@ public class URBPayload implements Payload {
 
     @Override
     public String toString() {
-        return payload.toString() + " " + originalSenderId;
+        return payload.getClass().toString() + " " + payload.toString() + " " + originalSenderId;
+    }
+
+    public static URBPayload unpackURBPayload(Payload payload) {
+        if (payload instanceof URBPayload) return (URBPayload) payload;
+        else return unpackURBPayload(payload.getPayload());
     }
 }
