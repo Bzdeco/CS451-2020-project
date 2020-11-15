@@ -12,11 +12,17 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Observer design pattern for registering deliveries: https://en.wikipedia.org/wiki/Observer_pattern
+ * <p>{@link PerfectLink} together with {@link Sender}, {@link Receiver} and {@link TransmissionParameters} utilizing
+ * implement a protocol reminiscent of and based on TCP (RFC 6298).</p>
+ *
+ * <p>Used resources:
+ * <ul>
+ *     <li><a href="https://en.wikipedia.org/wiki/Observer_pattern">Observer design pattern</a></li>
+ * </ul>
+ * </p>
  */
 public class PerfectLink extends Notifier implements Observer {
 
-    final private static int SENDING_BACKOFF = 2;
     final private static int SENDING_SLEEP_TIME = 100;
 
     final private Sender sender;

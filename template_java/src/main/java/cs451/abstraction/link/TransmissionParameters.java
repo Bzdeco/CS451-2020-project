@@ -3,10 +3,14 @@ package cs451.abstraction.link;
 import java.time.Duration;
 
 /**
- * Measuring time:
- * - https://www.baeldung.com/java-measure-elapsed-time
+ * <p>Retransmission parameters computation follows the TCP specification in RFC 6298.</p>
  *
- * Computed retransmission parameters follow the TCP specification in RFC 6298
+ * <p>Used resources:
+ * <ul>
+ *     <li><a href="https://www.baeldung.com/java-measure-elapsed-time">Measuring elapsed time</a></li>
+ *     <li><a href="https://www.tutorialspoint.com/duration-compareto-method-in-java">Comparing durations</a></li>
+ * </ul>
+ * </p>
  */
 public class TransmissionParameters {
 

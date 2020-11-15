@@ -11,9 +11,21 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
+/**
+ * <p>Used resources:
+ * <ul>
+ *     <li><a href="https://icapeople.epfl.ch/thiran/CoursED/Ch5_Transportlayer.pdf">TCP EPFL course</a></li>
+ *     <li><a href="people.cs.pitt.edu/~znati/Courses/WANs/Dir-Lect/05-TCPUDP-1pp.pdf">Univesity of Pittsburg - TCP/UDP</a></li>
+ *     <li><a href="https://io7m.com/documents/udp-reliable/">Reliable UDP</a></li>
+ *     <li><a href="https://tools.ietf.org/html/rfc6298">RFC 6298</a></li>
+ *     <li><a href="https://www.extrahop.com/company/blog/2017/tcp-windowing/">TCP windowing</a></li>
+ *     <li><a href="http://web.mit.edu/modiano/www/6.263/lec22-23.pdf">TCP - MIT course</a></li>
+ * </ul>
+ * </p>
+ */
 public class Sender {
 
-    final private static int MAX_RETRIES_IN_WINDOW = 2; // FIXME: arbitrary
+    final private static int MAX_RETRIES_IN_WINDOW = 2;
 
     final private MessagesStorage storage;
     final private DatagramSocket sendingSocket;

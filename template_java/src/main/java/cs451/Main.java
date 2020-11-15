@@ -11,6 +11,14 @@ import cs451.parser.Parser;
 import java.util.List;
 import java.util.stream.IntStream;
 
+/**
+ * <p>General used resources:
+ * <ul>
+ *     <li><a href="https://stackoverflow.com/questions/18331350/how-to-force-implementation-of-a-method-in-subclass-without-using-abstract">Forcing method implementation</a></li>
+ *     <li><a href="https://www.baeldung.com/java-copy-constructor">Copy constructor</a></li>
+ * </ul>
+ * </p>
+ */
 public class Main {
 
     final private static FIFOConfigParser configParser = new FIFOConfigParser();

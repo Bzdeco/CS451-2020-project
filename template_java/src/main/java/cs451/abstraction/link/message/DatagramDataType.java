@@ -1,5 +1,12 @@
 package cs451.abstraction.link.message;
 
+/**
+ * <p>Used resources:
+ * <ul>
+ *     <li><a href="https://stackoverflow.com/questions/5292790/convert-integer-value-to-matching-java-enum">Enum as values</a></li>
+ * </ul>
+ * </p>
+ */
 public enum DatagramDataType {
     PAYLOAD((byte) 0),
     ACK((byte) 1);

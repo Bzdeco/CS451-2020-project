@@ -11,8 +11,19 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Usage of concurrent collections:
- * -
+ * <p>Used resources:
+ * <ul>
+ *     <li><a href="https://crunchify.com/hashmap-vs-concurrenthashmap-vs-synchronizedmap-how-a-hashmap-can-be-synchronized-in-java/">ConcurrentHashMap use</a></li>
+ *     <li><a href="https://www.geeksforgeeks.org/producer-consumer-solution-using-threads-java/">Producer-consumer in Java</a></li>
+ *     <li><a href="https://www.baeldung.com/java-synchronized">Baeldung - synchronization</a></li>
+ *     <li><a href="https://stackoverflow.com/questions/5490346/synchronized-methods">Synchronized methods 1</a></li>
+ *     <li><a href="https://stackoverflow.com/questions/40072018/about-calling-methods-from-a-synchronized-block">Synchronized methods 2</a></li>
+ *     <li><a href="https://www.journaldev.com/378/java-util-concurrentmodificationexception#to-avoid-concurrentmodificationexception-in-multi-threaded-environment">Dealing with ConcurrentModificationException</a></li>
+ *     <li><a href="https://stackoverflow.com/questions/6992608/why-there-is-no-concurrenthashset-against-concurrenthashmap">Concurrent set</a></li>
+ *     <li><a href="https://stackoverflow.com/questions/25704325/return-copies-of-private-data-rather-than-references">Return copies of fields</a></li>
+ *     <li><a href="https://www.baeldung.com/java-immutable-set">Immutable set</a></li>
+ * </ul>
+ * </p>
  */
 public class MessagesStorage {
 

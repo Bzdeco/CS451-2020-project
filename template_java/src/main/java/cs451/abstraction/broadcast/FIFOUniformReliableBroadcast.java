@@ -12,6 +12,12 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 
+/**
+ * Used resources:
+ * <ul>
+ *     <li><a href="https://www.baeldung.com/java-concurrent-queues">Baeldung - Java concurrent queues</a></li>
+ * </ul>
+ */
 public class FIFOUniformReliableBroadcast extends Notifier implements Observer {
 
     final private int hostId;

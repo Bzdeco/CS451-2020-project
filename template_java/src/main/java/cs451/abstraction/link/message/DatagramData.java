@@ -1,9 +1,15 @@
 package cs451.abstraction.link.message;
 
-import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
+/**
+ * <p>Used resources:
+ * <ul>
+ *     <li><a href="http://bethecoder.com/applications/articles/java/basics/how-to-convert-byte-array-to-integer.html">Using ByteBuffer</a></li>
+ * </ul>
+ * </p>
+ */
 public class DatagramData {
 
     final private int senderHostId;
