@@ -3,6 +3,7 @@ package cs451.parser;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 
 /**
  * Used resources:
@@ -18,8 +19,8 @@ public class FIFOConfigParser extends ConfigParser {
 
     public int getNumberOfMessagesToBroadcast() {
         try {
-            String fileContent = Files.readString(Paths.get(getPath()));
-            return Integer.parseInt(fileContent);
+            List<String> fileContent = Files.readAllLines(Paths.get(getPath()));
+            return Integer.parseInt(fileContent.get(0));
         } catch (IOException exception) {
             throw new RuntimeException(exception);
         }
