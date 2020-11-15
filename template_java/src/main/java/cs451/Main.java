@@ -1,10 +1,9 @@
 package cs451;
 
-import cs451.abstraction.FIFOLogger;
+import cs451.abstraction.FIFOConsoleLogger;
+import cs451.abstraction.FIFOFileLogger;
 import cs451.abstraction.broadcast.FIFOUniformReliableBroadcast;
-import cs451.abstraction.broadcast.UniformReliableBroadcast;
 import cs451.abstraction.link.message.*;
-import cs451.parser.ConfigParser;
 import cs451.parser.FIFOConfigParser;
 import cs451.parser.Host;
 import cs451.parser.Parser;
@@ -14,8 +13,9 @@ import java.util.stream.IntStream;
 
 public class Main {
 
-    private static FIFOConfigParser configParser = new FIFOConfigParser();
-    private static FIFOLogger logger = new FIFOLogger();
+    final private static FIFOConfigParser configParser = new FIFOConfigParser();
+
+    private static FIFOFileLogger logger;
     private static FIFOUniformReliableBroadcast broadcaster;
 
     private static void handleSignal() {
@@ -25,8 +25,7 @@ public class Main {
 
         // write/flush output file if necessary
         System.out.println("Writing output.");
-        // TODO: make an additional global object observing broadcast and delivery and writing output
-        // logger.flush()
+        logger.flush();
     }
 
     private static void initSignalHandlers() {
@@ -54,7 +53,8 @@ public class Main {
 
         System.out.println("Barrier: " + parser.barrierIp() + ":" + parser.barrierPort());
         System.out.println("Signal: " + parser.signalIp() + ":" + parser.signalPort());
-        System.out.println("Output: " + parser.output());
+        String outputPath = parser.output();
+        System.out.println("Output: " + outputPath);
         // if config is defined; always check before parser.config()
         checkConfigAvailable(parser);
         System.out.println("Config: " + parser.config());
@@ -63,7 +63,7 @@ public class Main {
 
         int numberOfMessagesToBroadcast = configParser.getNumberOfMessagesToBroadcast();
         RawPayloadFactory rawPayloadFactory = new RawPayloadFactory();
-        initializeBroadcaster(hostId, allHosts, rawPayloadFactory);
+        initializeBroadcaster(hostId, allHosts, rawPayloadFactory, outputPath);
 
         System.out.println("Waiting for all processes to finish initialization");
         coordinator.waitOnBarrier();
@@ -82,7 +82,9 @@ public class Main {
         }
     }
 
-    private static void initializeBroadcaster(int hostId, List<Host> allHosts, RawPayloadFactory rawPayloadFactory) {
+    private static void initializeBroadcaster(int hostId, List<Host> allHosts, RawPayloadFactory rawPayloadFactory,
+                                              String outputPath) {
+        logger = new FIFOFileLogger(outputPath);
         broadcaster = new FIFOUniformReliableBroadcast(hostId, allHosts, rawPayloadFactory);
         broadcaster.registerBroadcastObserver(logger);
         broadcaster.registerDeliveryObserver(logger);
