@@ -4,6 +4,8 @@ import cs451.abstraction.FIFOLogger;
 import cs451.abstraction.broadcast.FIFOUniformReliableBroadcast;
 import cs451.abstraction.broadcast.UniformReliableBroadcast;
 import cs451.abstraction.link.message.*;
+import cs451.parser.ConfigParser;
+import cs451.parser.FIFOConfigParser;
 import cs451.parser.Host;
 import cs451.parser.Parser;
 
@@ -12,15 +14,16 @@ import java.util.stream.IntStream;
 
 public class Main {
 
+    private static FIFOConfigParser configParser = new FIFOConfigParser();
     private static FIFOLogger logger = new FIFOLogger();
     private static FIFOUniformReliableBroadcast broadcaster;
 
     private static void handleSignal() {
-        //immediately stop network packet processing
+        // immediately stop network packet processing
         System.out.println("Immediately stopping network packet processing.");
         broadcaster.stop();
 
-        //write/flush output file if necessary
+        // write/flush output file if necessary
         System.out.println("Writing output.");
         // TODO: make an additional global object observing broadcast and delivery and writing output
         // logger.flush()
@@ -32,7 +35,7 @@ public class Main {
 
     public static void main(String[] args) throws InterruptedException {
         Parser parser = new Parser(args);
-        parser.parse();
+        parser.parse(configParser);
 
         initSignalHandlers();
 
@@ -53,23 +56,22 @@ public class Main {
         System.out.println("Signal: " + parser.signalIp() + ":" + parser.signalPort());
         System.out.println("Output: " + parser.output());
         // if config is defined; always check before parser.config()
-        if (parser.hasConfig()) {
-            System.out.println("Config: " + parser.config());
-        }
+        checkConfigAvailable(parser);
+        System.out.println("Config: " + parser.config());
 
         Coordinator coordinator = new Coordinator(hostId, parser.barrierIp(), parser.barrierPort(), parser.signalIp(), parser.signalPort());
 
+        int numberOfMessagesToBroadcast = configParser.getNumberOfMessagesToBroadcast();
         RawPayloadFactory rawPayloadFactory = new RawPayloadFactory();
-        broadcaster = new FIFOUniformReliableBroadcast(hostId, allHosts, rawPayloadFactory);
-        broadcaster.registerBroadcastObserver(logger);
-        broadcaster.registerDeliveryObserver(logger);
+        initializeBroadcaster(hostId, allHosts, rawPayloadFactory);
 
         System.out.println("Waiting for all processes to finish initialization");
         coordinator.waitOnBarrier();
 
-	    System.out.println("Broadcasting messages...");
-	    // TODO number of messages from config
-        IntStream.range(1, 151).forEach(messageNumber -> broadcaster.broadcast(rawPayloadFactory.create(null)));
+        System.out.println("Broadcasting messages...");
+        IntStream.range(0, numberOfMessagesToBroadcast).forEach(
+                messageNumber -> broadcaster.broadcast(rawPayloadFactory.create(null))
+        );
 
 	    System.out.println("Signaling end of broadcasting messages");
         coordinator.finishedBroadcasting();
@@ -78,5 +80,15 @@ public class Main {
             // Sleep for 1 hour
             Thread.sleep(60 * 60 * 1000);
         }
+    }
+
+    private static void initializeBroadcaster(int hostId, List<Host> allHosts, RawPayloadFactory rawPayloadFactory) {
+        broadcaster = new FIFOUniformReliableBroadcast(hostId, allHosts, rawPayloadFactory);
+        broadcaster.registerBroadcastObserver(logger);
+        broadcaster.registerDeliveryObserver(logger);
+    }
+
+    private static void checkConfigAvailable(Parser parser) {
+        if (!parser.hasConfig()) throw new RuntimeException("Config must be given for FIFO broadcasting");
     }
 }

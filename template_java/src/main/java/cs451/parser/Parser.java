@@ -17,7 +17,7 @@ public class Parser {
         this.args = args;
     }
 
-    public void parse() {
+    public void parse(ConfigParser confParser) {
         pid = ProcessHandle.current().pid();
 
         idParser = new IdParser();
@@ -63,8 +63,9 @@ public class Parser {
         }
 
         if (argsNum == Constants.ARG_LIMIT_CONFIG) {
-            configParser = new ConfigParser();
+            configParser = confParser;
             if (!configParser.populate(args[Constants.CONFIG_VALUE])) {
+                System.err.println("Error in CONFIG argument");
             }
         }
     }
