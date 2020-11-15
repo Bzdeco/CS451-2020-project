@@ -4,10 +4,14 @@ import cs451.abstraction.Notifier;
 import cs451.abstraction.Observer;
 import cs451.abstraction.link.HostResolver;
 import cs451.abstraction.link.PerfectLink;
-import cs451.abstraction.link.message.*;
+import cs451.abstraction.link.message.Message;
+import cs451.abstraction.link.message.MessageFactory;
+import cs451.abstraction.link.message.Payload;
+import cs451.abstraction.link.message.PayloadFactory;
 import cs451.parser.Host;
 
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
 
 public class BestEffortBroadcast extends Notifier implements Observer {
 

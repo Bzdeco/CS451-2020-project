@@ -1,6 +1,9 @@
 package cs451.abstraction;
 
-import cs451.abstraction.link.message.*;
+import cs451.abstraction.link.message.FIFOPayload;
+import cs451.abstraction.link.message.Message;
+import cs451.abstraction.link.message.Payload;
+import cs451.abstraction.link.message.URBPayload;
 
 public class FIFOConsoleLogger implements Observer {
 

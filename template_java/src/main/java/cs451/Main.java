@@ -1,9 +1,8 @@
 package cs451;
 
-import cs451.abstraction.FIFOConsoleLogger;
 import cs451.abstraction.FIFOFileLogger;
 import cs451.abstraction.broadcast.FIFOUniformReliableBroadcast;
-import cs451.abstraction.link.message.*;
+import cs451.abstraction.link.message.RawPayloadFactory;
 import cs451.parser.FIFOConfigParser;
 import cs451.parser.Host;
 import cs451.parser.Parser;
