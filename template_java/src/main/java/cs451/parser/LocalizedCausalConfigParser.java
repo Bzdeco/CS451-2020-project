@@ -29,7 +29,7 @@ public class LocalizedCausalConfigParser extends FIFOConfigParser {
 
             int lineNumber = 1;
             IntStream.range(1, fileContent.size() + 1).forEach(
-                    processId -> relationships.put(processId, parseCausalRelationships(fileContent.get(lineNumber)))
+                    processId -> relationships.put(processId, parseDependencies(fileContent.get(lineNumber)))
             );
             return true;
         } catch (IOException exc) {
@@ -37,7 +37,7 @@ public class LocalizedCausalConfigParser extends FIFOConfigParser {
         }
     }
 
-    private Set<Integer> parseCausalRelationships(String line) {
+    private Set<Integer> parseDependencies(String line) {
         String[] affectingProcesses = line.stripTrailing().split(" ");
         return Set.of(affectingProcesses).stream().map(Integer::parseInt).collect(Collectors.toSet());
     }

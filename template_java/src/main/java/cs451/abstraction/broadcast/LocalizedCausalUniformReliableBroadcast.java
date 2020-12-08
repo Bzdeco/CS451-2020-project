@@ -17,6 +17,7 @@ public class LocalizedCausalUniformReliableBroadcast extends Notifier implements
 
     final private int hostId;
     final private ProcessVectorClock vectorClock;
+    final private Set<Integer> hostDependencies;
     final private Set<LocalizedCausalPayload> pending;
     private int lastSequenceNumber;
 
@@ -24,11 +25,12 @@ public class LocalizedCausalUniformReliableBroadcast extends Notifier implements
     final private LocalizedCausalPayloadFactory localizedCausalPayloadFactory;
     final private UniformReliableBroadcast uniformReliableBroadcast;
 
-    public LocalizedCausalUniformReliableBroadcast(int hostId, List<Host> allHosts,
+    public LocalizedCausalUniformReliableBroadcast(int hostId, List<Host> allHosts, Set<Integer> hostDependencies,
                                                    PayloadFactory rawDataPayloadFactory) {
         int numberOfProcesses = allHosts.size();
         this.hostId = hostId;
         vectorClock = new ProcessVectorClock(numberOfProcesses);
+        this.hostDependencies = hostDependencies;
         pending = Collections.newSetFromMap(new ConcurrentHashMap<>());
         lastSequenceNumber = 0;
 
@@ -41,9 +43,8 @@ public class LocalizedCausalUniformReliableBroadcast extends Notifier implements
 
     public void broadcast(Payload rawPayload) {
         synchronized (vectorClock) {
-            MessagePassedVectorClock passedVectorClock = new MessagePassedVectorClock(vectorClock);
+            MessagePassedVectorClock passedVectorClock = new MessagePassedVectorClock(vectorClock, hostDependencies);
             passedVectorClock.setEntryForHost(hostId, lastSequenceNumber);
-            // TODO: limit passed vector clock to dependencies only
             lastSequenceNumber++;
 
             LocalizedCausalPayload payload = localizedCausalPayloadFactory.create(passedVectorClock, rawPayload);

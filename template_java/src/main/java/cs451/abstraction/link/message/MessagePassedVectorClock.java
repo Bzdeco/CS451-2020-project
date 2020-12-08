@@ -3,23 +3,25 @@ package cs451.abstraction.link.message;
 import cs451.abstraction.ProcessVectorClock;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Set;
 
 public class MessagePassedVectorClock {
 
     final private int[] clockArray;
     final private int sizeInBytes;
 
-    public MessagePassedVectorClock(ProcessVectorClock processVectorClock) {
-        clockArray = copyClockArray(processVectorClock);
+    public MessagePassedVectorClock(ProcessVectorClock processVectorClock, Set<Integer> dependencies) {
+        clockArray = filteredCopyOfClockArray(processVectorClock, dependencies);
         sizeInBytes = clockArray.length * Integer.BYTES;
     }
 
-    // TODO: should be done on a copy of process vector clock
-    private int[] copyClockArray(ProcessVectorClock processVectorClock) {
+    private int[] filteredCopyOfClockArray(ProcessVectorClock processVectorClock, Set<Integer> hostDependencies) {
         int[] clockArray = new int[processVectorClock.getLength()];
-        for (int processId = 1; processId <= clockArray.length; processId++) {
-            clockArray[processId - 1] = processVectorClock.getEntryForProcess(processId);
-        }
+        Arrays.fill(clockArray, 0);
+        hostDependencies.forEach(
+                affectingHostId -> clockArray[affectingHostId - 1] = processVectorClock.getEntryForProcess(affectingHostId)
+        );
         return clockArray;
     }
 
