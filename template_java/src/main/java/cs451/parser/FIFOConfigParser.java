@@ -13,16 +13,26 @@ import java.util.List;
  */
 public class FIFOConfigParser extends ConfigParser {
 
+    private int numberOfMessagesToBroadcast;
+
     public FIFOConfigParser() {
         super();
     }
 
-    public int getNumberOfMessagesToBroadcast() {
+    @Override
+    public boolean populate(String value) {
+        super.populate(value);
+
         try {
             List<String> fileContent = Files.readAllLines(Paths.get(getPath()));
-            return Integer.parseInt(fileContent.get(0));
+            numberOfMessagesToBroadcast = Integer.parseInt(fileContent.get(0));
+            return true;
         } catch (IOException exception) {
-            throw new RuntimeException(exception);
+            return false;
         }
+    }
+
+    public int getNumberOfMessagesToBroadcast() {
+        return numberOfMessagesToBroadcast;
     }
 }

@@ -98,8 +98,7 @@ public class FIFOUniformReliableBroadcast extends Notifier implements Observer {
     }
 
     private Message createDeliveredMessageFromPayload(Payload payload) {
-        URBPayload urbPayload = URBPayload.unpackURBPayload(payload);
-        return messageFactory.createMessageWithPayload(urbPayload.getOriginalSenderId(), hostId, payload);
+        return messageFactory.createMessageWithPayload(payload.getOriginalSenderId(), hostId, payload);
     }
 
     public void stop() {

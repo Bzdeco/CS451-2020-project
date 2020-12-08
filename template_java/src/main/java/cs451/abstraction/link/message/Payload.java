@@ -7,4 +7,6 @@ public interface Payload {
     int getSizeInBytes();
 
     Payload getPayload();
+
+    int getOriginalSenderId();
 }

@@ -26,6 +26,11 @@ public class FIFOPayload implements Comparable<FIFOPayload>, Payload {
     }
 
     @Override
+    public int getOriginalSenderId() {
+        return payload.getOriginalSenderId();
+    }
+
+    @Override
     public byte[] getBytes() {
         ByteBuffer buffer = ByteBuffer.allocate(HEADER_BYTE_SIZE + payload.getSizeInBytes());
         buffer.putInt(sequenceNumber);

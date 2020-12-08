@@ -61,8 +61,7 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
 
     @Override
     public void notifyOfBroadcast(Payload payload) {
-        URBPayload urbPayload = URBPayload.unpackURBPayload(payload);
-        if (urbPayload.getOriginalSenderId() == hostId) {
+        if (payload.getOriginalSenderId() == hostId) {
             emitBroadcastEvent(payload);
         }
     }
@@ -100,16 +99,10 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
     private void processDeliveries() {
         Set<Payload> toRemove = new HashSet<>();
 
-//        long selfToDeliver = toDeliver.stream().filter(this::isOfOwnOrigin).count();
-//        System.out.println("self tD " + selfToDeliver);
         toDeliver.forEach(payload -> {
             // own origin messages should not be delivered through the relayed broadcast from the network
             boolean isOfOwnOrigin = isOfOwnOrigin(payload);
             boolean isOfOwnOriginAndBroadcast = isOfOwnOrigin && doneBroadcast.contains(payload);
-
-//            if (isOfOwnOriginAndBroadcast) {
-//                System.out.println(seenBy.get(payload));
-//            }
 
             if (canDeliver(payload) && (!isOfOwnOrigin || isOfOwnOriginAndBroadcast)) {
                 deliver(createDeliveredMessageFromPayload(payload));
@@ -123,8 +116,7 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
     }
 
     private Message createDeliveredMessageFromPayload(Payload payload) {
-        URBPayload urbPayload = URBPayload.unpackURBPayload(payload);
-        return messageFactory.createMessageWithPayload(urbPayload.getOriginalSenderId(), hostId, payload);
+        return messageFactory.createMessageWithPayload(payload.getOriginalSenderId(), hostId, payload);
     }
 
     private void deliver(Message message) {
@@ -149,8 +141,7 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
     }
 
     private boolean isOfOwnOrigin(Payload payload) {
-        URBPayload urbPayload = URBPayload.unpackURBPayload(payload);
-        return urbPayload.getOriginalSenderId() == hostId;
+        return payload.getOriginalSenderId() == hostId;
     }
 
     private Thread startDeliveryThread() {
