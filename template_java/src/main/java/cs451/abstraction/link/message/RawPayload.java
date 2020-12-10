@@ -22,6 +22,16 @@ public class RawPayload implements Payload {
     }
 
     @Override
+    public int getOriginalSenderId() {
+        throw new RuntimeException();
+    }
+
+    @Override
+    public int getSequenceNumber() {
+        throw new RuntimeException();
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;

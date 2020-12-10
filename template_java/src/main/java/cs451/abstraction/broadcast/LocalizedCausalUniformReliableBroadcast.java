@@ -29,7 +29,7 @@ public class LocalizedCausalUniformReliableBroadcast extends Notifier implements
                                                    PayloadFactory rawDataPayloadFactory) {
         int numberOfProcesses = allHosts.size();
         this.hostId = hostId;
-        vectorClock = new ProcessVectorClock(numberOfProcesses);
+        vectorClock = new ProcessVectorClock(hostId, numberOfProcesses);
         this.hostDependencies = hostDependencies;
         pending = Collections.newSetFromMap(new ConcurrentHashMap<>());
         lastSequenceNumber = 0;

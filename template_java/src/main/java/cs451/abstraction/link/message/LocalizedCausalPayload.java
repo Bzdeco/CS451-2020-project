@@ -42,7 +42,13 @@ public class LocalizedCausalPayload implements Payload {
         else return unpackLocalizedCausalPayload(payload.getPayload());
     }
 
+    @Override
     public int getOriginalSenderId() {
         return payload.getOriginalSenderId();
+    }
+
+    @Override
+    public int getSequenceNumber() {
+        return vectorClock.getEntryForHost(vectorClock.getHostId()) + 1;
     }
 }

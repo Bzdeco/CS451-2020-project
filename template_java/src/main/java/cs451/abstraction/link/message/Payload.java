@@ -9,4 +9,6 @@ public interface Payload {
     Payload getPayload();
 
     int getOriginalSenderId();
+
+    int getSequenceNumber();
 }

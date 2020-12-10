@@ -16,6 +16,7 @@ public class FIFOPayload implements Comparable<FIFOPayload>, Payload {
         this.payload = payload;
     }
 
+    @Override
     public int getSequenceNumber() {
         return sequenceNumber;
     }

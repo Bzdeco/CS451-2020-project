@@ -7,9 +7,11 @@ import java.util.stream.IntStream;
 
 public class ProcessVectorClock {
 
+    final private int hostId;
     final private Map<Integer, AtomicInteger> vectorClock;
 
-    public ProcessVectorClock(int numberOfProcesses) {
+    public ProcessVectorClock(int hostId, int numberOfProcesses) {
+        this.hostId = hostId;
         vectorClock = initializeVectorClock(numberOfProcesses);
     }
 
@@ -21,6 +23,10 @@ public class ProcessVectorClock {
 
     public int getLength() {
         return vectorClock.size();
+    }
+
+    public int getHostId() {
+        return hostId;
     }
 
     public int getEntryForProcess(int processId) {

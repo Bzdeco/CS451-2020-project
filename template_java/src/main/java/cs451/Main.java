@@ -1,6 +1,7 @@
 package cs451;
 
-import cs451.abstraction.FIFOFileLogger;
+import cs451.abstraction.ConsoleLogger;
+import cs451.abstraction.FileLogger;
 import cs451.abstraction.broadcast.FIFOUniformReliableBroadcast;
 import cs451.abstraction.link.message.RawPayloadFactory;
 import cs451.parser.FIFOConfigParser;
@@ -22,7 +23,7 @@ public class Main {
 
     final private static FIFOConfigParser configParser = new FIFOConfigParser();
 
-    private static FIFOFileLogger logger;
+    private static FileLogger logger;
     private static FIFOUniformReliableBroadcast broadcaster;
 
     private static void handleSignal() {
@@ -91,7 +92,8 @@ public class Main {
 
     private static void initializeBroadcaster(int hostId, List<Host> allHosts, RawPayloadFactory rawPayloadFactory,
                                               String outputPath) {
-        logger = new FIFOFileLogger(outputPath);
+        logger = new FileLogger(outputPath);
+//        logger = new ConsoleLogger();
         broadcaster = new FIFOUniformReliableBroadcast(hostId, allHosts, rawPayloadFactory);
         broadcaster.registerBroadcastObserver(logger);
         broadcaster.registerDeliveryObserver(logger);

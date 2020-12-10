@@ -21,6 +21,11 @@ public class URBPayload implements Payload {
     }
 
     @Override
+    public int getSequenceNumber() {
+        throw new RuntimeException();
+    }
+
+    @Override
     public Payload getPayload() {
         return payload;
     }

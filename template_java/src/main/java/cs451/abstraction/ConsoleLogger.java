@@ -1,11 +1,9 @@
 package cs451.abstraction;
 
-import cs451.abstraction.link.message.FIFOPayload;
 import cs451.abstraction.link.message.Message;
 import cs451.abstraction.link.message.Payload;
-import cs451.abstraction.link.message.URBPayload;
 
-public class FIFOConsoleLogger implements Observer {
+public class ConsoleLogger implements Observer {
 
     @Override
     public void notifyOfBroadcast(Payload payload) {
@@ -13,8 +11,7 @@ public class FIFOConsoleLogger implements Observer {
     }
 
     protected String createBroadcastLog(Payload payload) {
-        FIFOPayload fifoPayload = (FIFOPayload) payload;
-        return "b " + fifoPayload.getSequenceNumber();
+        return "b " + payload.getSequenceNumber();
     }
 
     @Override
@@ -23,8 +20,6 @@ public class FIFOConsoleLogger implements Observer {
     }
 
     protected String createDeliveryLog(Payload payload) {
-        FIFOPayload fifoPayload = (FIFOPayload) payload;
-        URBPayload urbPayload = (URBPayload) fifoPayload.getPayload();
-        return "d " + urbPayload.getOriginalSenderId() + " " + fifoPayload.getSequenceNumber();
+        return "d " + payload.getOriginalSenderId() + " " + payload.getSequenceNumber();
     }
 }

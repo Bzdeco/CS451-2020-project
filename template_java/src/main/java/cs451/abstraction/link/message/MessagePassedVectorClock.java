@@ -8,10 +8,12 @@ import java.util.Set;
 
 public class MessagePassedVectorClock {
 
+    private int hostId;
     final private int[] clockArray;
     final private int sizeInBytes;
 
     public MessagePassedVectorClock(ProcessVectorClock processVectorClock, Set<Integer> dependencies) {
+        hostId = processVectorClock.getHostId();
         clockArray = filteredCopyOfClockArray(processVectorClock, dependencies);
         sizeInBytes = clockArray.length * Integer.BYTES;
     }
@@ -26,6 +28,7 @@ public class MessagePassedVectorClock {
     }
 
     private MessagePassedVectorClock(int[] clockArray) {
+        hostId = 0; // uninitialized, should be subsequently set
         this.clockArray = clockArray;
         sizeInBytes = clockArray.length * Integer.BYTES;
     }
@@ -36,6 +39,14 @@ public class MessagePassedVectorClock {
             clockArray[entry] = buffer.getInt();
         }
         return new MessagePassedVectorClock(clockArray);
+    }
+
+    public int getHostId() {
+        return hostId;
+    }
+
+    public void setHostId(int hostId) {
+        this.hostId = hostId;
     }
 
     public int getEntryForHost(int hostId) {

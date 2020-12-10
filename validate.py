@@ -27,6 +27,7 @@ PROCESSES_BASE_IP = 11000
 
 # Do not run multiple validations concurrently!
 
+
 class TC:
     def __init__(self, losses, interface="lo", needSudo=True, sudoPassword="dcl"):
         self.losses = losses
@@ -67,10 +68,12 @@ class TC:
         else:
             os.system(cmd)
 
+
 class ProcessState(Enum):
     RUNNING = 1
     STOPPED = 2
     TERMINATED = 3
+
 
 class ProcessInfo:
     def __init__(self, handle):
@@ -113,6 +116,7 @@ class ProcessInfo:
 
         return False
 
+
 class AtomicSaturatedCounter:
     def __init__(self, saturation, initial=0):
         self._saturation = saturation
@@ -127,6 +131,7 @@ class AtomicSaturatedCounter:
             else:
                 return False
 
+
 class Validation:
     def __init__(self, processes, messages, outputDir):
         self.processes = processes
@@ -135,13 +140,20 @@ class Validation:
         if not os.path.isdir(self.outputDirPath):
             raise Exception("`{}` is not a directory".format(self.outputDirPath))
 
+    def generateHosts(self):
+        hosts = tempfile.NamedTemporaryFile(mode='w')
+
+        for i in range(1, self.processes + 1):
+            hosts.write("{} localhost {}\n".format(i, PROCESSES_BASE_IP + i))
+
+        hosts.flush()
+        return hosts
+
     def generateConfig(self):
-        # Implement on the derived classes
-        pass
+        raise NotImplementedError
 
     def checkProcess(self, pid):
-        # Implement on the derived classes
-        pass
+        raise NotImplementedError
 
     def checkAll(self, continueOnError=True):
         ok = True
@@ -155,26 +167,21 @@ class Validation:
 
         return ok
 
+
 class FifoBroadcastValidation(Validation):
     def generateConfig(self):
-        hosts = tempfile.NamedTemporaryFile(mode='w')
         config = tempfile.NamedTemporaryFile(mode='w')
-
-        for i in range(1, self.processes + 1):
-            hosts.write("{} localhost {}\n".format(i, PROCESSES_BASE_IP+i))
-
-        hosts.flush()
 
         config.write("{}\n".format(self.messages))
         config.flush()
 
-        return (hosts, config)
+        return self.generateHosts(), config
 
     def checkProcess(self, pid):
         filePath = os.path.join(self.outputDirPath, 'proc{:02d}.output'.format(pid))
 
         i = 1
-        nextMessage = defaultdict(lambda : 1)
+        nextMessage = defaultdict(lambda: 1)
         filename = os.path.basename(filePath)
 
         with open(filePath) as f:
@@ -201,16 +208,105 @@ class FifoBroadcastValidation(Validation):
 
         return True
 
+
 class LCausalBroadcastValidation(Validation):
-    def __init__(self, processes, messages, outputDir, extraParameter):
+    def __init__(self, processes, messages, outputDir, config_dependencies=None):
         super().__init__(processes, messages, outputDir)
-        # Use the `extraParameter` to pass any information you think is relevant
+        self.config_dependencies = config_dependencies
+
+        self.broadcastDependencies = {}
+        self.deliveries = []
 
     def generateConfig(self):
-        raise NotImplementedError()
+        config = tempfile.NamedTemporaryFile(mode='w')
+
+        config.write("{}\n".format(self.messages))
+
+        if self.config_dependencies is not None:
+            self._generateCausalRelationshipsFromDependencies(config)
+        else:
+            self._generateRandomCausalRelationships(config)
+
+        config.flush()
+
+        return self.generateHosts(), config
+
+    def _generateCausalRelationshipsFromDependencies(self, config):
+        for process in range(1, self.processes + 1):
+            line = [process] + sorted(self.config_dependencies[process])
+            config.write(line.join(' ') + '\n')
+
+    def _generateRandomCausalRelationships(self, config):
+        all_processes = list(range(1, self.processes + 1))
+        n_processes = len(all_processes)
+
+        for process in all_processes:
+            sampled_dependencies = set(random.sample(all_processes, k=random.randint(0, n_processes)))
+            try:
+                sampled_dependencies.remove(process)
+            except KeyError:
+                pass
+            line = [process] + sorted(list(sampled_dependencies))
+            config.write(line.join(' ') + '\n')
+
+    def parseBroadcastDependencies(self):
+        for process in range(1, self.processes + 1):
+            self.broadcastDependencies[process] = {}
+
+            filePath = os.path.join(self.outputDirPath, 'proc{:02d}.output'.format(pid))
+            delivery_index = 0
+            with open(filePath, 'r') as output_file:
+                for line in output_file:
+                    tokens = line.split('b')
+
+                    if tokens[0] == 'b':
+                        sequence_number = int(tokens[1])
+                        self.broadcastDependencies[process][sequence_number] = delivery_index
+
+                    if tokens[0] == 'd':
+                        sender = int(tokens[1])
+                        sequence_number = int(tokens[2])
+                        self.deliveries.append((sender, sequence_number))
+                        delivery_index += 1
+
+    def getBroadcastDependencies(self, sender, sequence_number):
+        return self.deliveries[:self.broadcastDependencies[sender][sequence_number]]
 
     def checkProcess(self, pid):
-        raise NotImplementedError()
+        filePath = os.path.join(self.outputDirPath, 'proc{:02d}.output'.format(pid))
+        filename = os.path.basename(filePath)
+
+        next_broadcast = 1
+        delivered = set({})
+        with open(filePath, 'r') as output_file:
+            for lineNumber, line in output_file:
+                tokens = line.split(' ')
+
+                # Check broadcast
+                if tokens[0] == 'b':
+                    sequence_number = int(tokens[1])
+                    if sequence_number != next_broadcast:
+                        print(f"File {filename}, Line {lineNumber}: Messages broadcast out of order. Expected message "
+                              f"{next_broadcast} but broadcast message {sequence_number}")
+                        return False
+                    next_broadcast += 1
+
+                # Check delivery
+                if tokens[1] == 'd':
+                    sender = int(tokens[1])
+                    sequence_number = int(tokens[2])
+                    to_deliver_before = self.getBroadcastDependencies(sender, sequence_number)
+
+                    for message in to_deliver_before:
+                        if message not in delivered:
+                            print(f"File {filename}, Line {lineNumber}: Message delivered prematurely. Delivered ("
+                                  f"{sender}, {sequence_number}), but {message} was not delivered before.")
+                            return False
+
+                    delivered.add((sender, sequence_number))
+
+        return True
+
 
 class StressTest:
     def __init__(self, procs, concurrency, attempts, attemptsRatio):
@@ -230,8 +326,8 @@ class StressTest:
         random.shuffle(selectProc)
 
         selectOp = [ProcessState.STOPPED] * int(1000 * self.attemptsRatio['STOP']) + \
-                    [ProcessState.RUNNING] * int(1000 * self.attemptsRatio['CONT']) + \
-                    [ProcessState.TERMINATED] * int(1000 * self.attemptsRatio['TERM'])
+                   [ProcessState.RUNNING] * int(1000 * self.attemptsRatio['CONT']) + \
+                   [ProcessState.TERMINATED] * int(1000 * self.attemptsRatio['TERM'])
         random.shuffle(selectOp)
 
         successfulAttempts = 0
@@ -299,6 +395,7 @@ class StressTest:
         else:
             self.stress()
 
+
 def startProcesses(processes, runscript, hostsFilePath, configFilePath, outputDir):
     runscriptPath = os.path.abspath(runscript)
     if not os.path.isfile(runscriptPath):
@@ -334,10 +431,10 @@ def startProcesses(processes, runscript, hostsFilePath, configFilePath, outputDi
         stdoutFd = open(os.path.join(outputDirPath, 'proc{:02d}.stdout'.format(pid)), "w")
         stderrFd = open(os.path.join(outputDirPath, 'proc{:02d}.stderr'.format(pid)), "w")
 
-
         procs.append((pid, subprocess.Popen(cmd + cmd_ext, stdout=stdoutFd, stderr=stderrFd)))
 
     return procs
+
 
 def main(processes, messages, runscript, broadcastType, logsDir, testConfig):
     # Set tc for loopback
@@ -361,8 +458,7 @@ def main(processes, messages, runscript, broadcastType, logsDir, testConfig):
     if broadcastType == "fifo":
         validation = FifoBroadcastValidation(processes, messages, logsDir)
     else:
-        # Use the last argument (now it's `None` since it's not being use) to
-        # pass any information that you think is relevant
+        # TODO: modify for specific dependencies config
         validation = LCausalBroadcastValidation(processes, messages, logsDir, None)
 
     hostsFile, configFile = validation.generateConfig()
@@ -380,13 +476,11 @@ def main(processes, messages, runscript, broadcastType, logsDir, testConfig):
         for (logicalPID, procHandle) in procs:
             print("Process with logicalPID {} has PID {}".format(logicalPID, procHandle.pid))
 
-
         initBarrierThread.join()
         print("All processes have been initialized.")
 
         st.run()
         print("StressTest is complete.")
-
 
         print("Resuming stopped processes.")
         st.continueStoppedProcesses()
@@ -395,7 +489,9 @@ def main(processes, messages, runscript, broadcastType, logsDir, testConfig):
         finishSignalThread.join()
 
         for pid, startTs in OrderedDict(sorted(startTimesFuture.items())).items():
-            print("Process {} finished broadcasting {} messages in {} ms".format(pid, messages, finishSignal.endTimestamps()[pid] - startTs))
+            print("Process {} finished broadcasting {} messages in {} ms".format(
+                pid, messages, finishSignal.endTimestamps()[pid] - startTs)
+            )
 
         unterminated = st.remainingUnterminatedProcesses()
         if unterminated is not None:
@@ -415,6 +511,9 @@ def main(processes, messages, runscript, broadcastType, logsDir, testConfig):
         [p.start() for p in monitors]
         [p.join() for p in monitors]
 
+        if broadcastType == 'lcausal':
+            validation.parseBroadcastDependencies()
+
         input('Hit `Enter` to validate the output')
         print("Result of validation: {}".format(validation.checkAll()))
 
@@ -422,6 +521,7 @@ def main(processes, messages, runscript, broadcastType, logsDir, testConfig):
         if procs is not None:
             for _, p in procs:
                 p.kill()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -481,12 +581,12 @@ if __name__ == "__main__":
 
         # StressTest configuration
         'ST': {
-            'concurrency' : 8, # How many threads are interferring with the running processes
-            'attempts' : 8, # How many interferring attempts each threads does
-            'attemptsDistribution' : { # Probability with which an interferring thread will
-                'STOP': 0.48,          # select an interferring action (make sure they add up to 1)
+            'concurrency': 8,  # How many threads are interfering with the running processes
+            'attempts': 8,  # How many interfering attempts each threads does
+            'attemptsDistribution': {  # Probability with which an interfering thread will
+                'STOP': 0.48,          # select an interfering action (make sure they add up to 1)
                 'CONT': 0.48,
-                'TERM':0.04
+                'TERM': 0.04
             }
         }
     }

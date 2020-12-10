@@ -10,12 +10,12 @@ import java.nio.file.Paths;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class FIFOFileLogger extends FIFOConsoleLogger {
+public class FileLogger extends ConsoleLogger {
 
     final private Path outputPath;
     final private Queue<String> loggedEvents;
 
-    public FIFOFileLogger(String outputFilePath) {
+    public FileLogger(String outputFilePath) {
         super();
         outputPath = createOutputFile(outputFilePath);
         loggedEvents = new LinkedBlockingQueue<>();
