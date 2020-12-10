@@ -36,4 +36,17 @@ public class ProcessVectorClock {
     public void incrementForProcess(int processId) {
         vectorClock.get(processId).incrementAndGet();
     }
+
+    @Override
+    public String toString() {
+        return hostId + ", [" + printVectorClock() + "]";
+    }
+
+    private String printVectorClock() {
+        StringBuilder stringBuilder = new StringBuilder();
+        for (int hostId = 1; hostId <= vectorClock.size(); hostId++) {
+            stringBuilder.append(vectorClock.get(hostId).get()).append(" ");
+        }
+        return stringBuilder.toString();
+    }
 }

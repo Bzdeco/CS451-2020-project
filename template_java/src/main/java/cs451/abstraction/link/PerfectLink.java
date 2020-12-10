@@ -49,7 +49,9 @@ public class PerfectLink extends Notifier implements Observer {
         boolean wasSent = sender.send(message);
 
         while (!wasSent) {
+            // FIXME can block subsequent deliveries, maybe queue instead?
             try {
+                System.out.println("Sending sleep");
                 Thread.sleep(SENDING_SLEEP_TIME);
                 wasSent = sender.send(message);
             } catch (InterruptedException exc) {

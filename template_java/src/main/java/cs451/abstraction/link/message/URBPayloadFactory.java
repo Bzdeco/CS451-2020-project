@@ -16,4 +16,8 @@ public class URBPayloadFactory implements PayloadFactory {
         Payload payload = payloadFactory.create(buffer);
         return new URBPayload(originalSenderId, payload);
     }
+
+    public URBPayload create(int senderId, Payload payload) {
+        return new URBPayload(senderId, payload);
+    }
 }

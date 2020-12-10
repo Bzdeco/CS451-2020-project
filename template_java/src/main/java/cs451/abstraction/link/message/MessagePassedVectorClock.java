@@ -4,6 +4,7 @@ import cs451.abstraction.ProcessVectorClock;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Set;
 
 public class MessagePassedVectorClock {
@@ -76,5 +77,26 @@ public class MessagePassedVectorClock {
             }
         }
         return true;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        MessagePassedVectorClock that = (MessagePassedVectorClock) o;
+        return hostId == that.hostId &&
+                Arrays.equals(clockArray, that.clockArray);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(hostId);
+        result = 31 * result + Arrays.hashCode(clockArray);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return hostId + ", " + Arrays.toString(clockArray);
     }
 }

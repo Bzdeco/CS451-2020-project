@@ -21,6 +21,7 @@ public class LocalizedCausalPayloadFactory implements PayloadFactory {
     }
 
     public LocalizedCausalPayload create(MessagePassedVectorClock vectorClock, Payload payload) {
-        return new LocalizedCausalPayload(vectorClock, payload);
+        URBPayload urbPayload = urbPayloadFactory.create(vectorClock.getHostId(), payload);
+        return new LocalizedCausalPayload(vectorClock, urbPayload);
     }
 }

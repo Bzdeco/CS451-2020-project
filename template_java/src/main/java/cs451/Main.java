@@ -4,12 +4,15 @@ import cs451.abstraction.ConsoleLogger;
 import cs451.abstraction.Logger;
 import cs451.abstraction.broadcast.Broadcaster;
 import cs451.abstraction.broadcast.FIFOUniformReliableBroadcast;
+import cs451.abstraction.broadcast.LocalizedCausalUniformReliableBroadcast;
 import cs451.abstraction.link.message.RawPayloadFactory;
 import cs451.parser.FIFOConfigParser;
 import cs451.parser.Host;
+import cs451.parser.LocalizedCausalConfigParser;
 import cs451.parser.Parser;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 /**
@@ -22,7 +25,7 @@ import java.util.stream.IntStream;
  */
 public class Main {
 
-    final private static FIFOConfigParser configParser = new FIFOConfigParser();
+    final private static LocalizedCausalConfigParser configParser = new LocalizedCausalConfigParser();
 
     private static Logger logger;
     private static Broadcaster broadcaster;
@@ -45,7 +48,7 @@ public class Main {
         Parser parser = new Parser(args);
         parser.parse(configParser);
 
-        initSignalHandlers();
+//        initSignalHandlers();
 
         // example
         long pid = ProcessHandle.current().pid();
@@ -71,8 +74,9 @@ public class Main {
         Coordinator coordinator = new Coordinator(hostId, parser.barrierIp(), parser.barrierPort(), parser.signalIp(), parser.signalPort());
 
         int numberOfMessagesToBroadcast = configParser.getNumberOfMessagesToBroadcast();
+        Set<Integer> hostDependencies = configParser.getCausalRelationships().get(hostId);
         RawPayloadFactory rawPayloadFactory = new RawPayloadFactory();
-        initializeBroadcaster(hostId, allHosts, rawPayloadFactory, outputPath);
+        initializeBroadcaster(hostId, allHosts, hostDependencies, rawPayloadFactory, outputPath);
 
         System.out.println("Waiting for all processes to finish initialization");
         coordinator.waitOnBarrier();
@@ -91,11 +95,12 @@ public class Main {
         }
     }
 
-    private static void initializeBroadcaster(int hostId, List<Host> allHosts, RawPayloadFactory rawPayloadFactory,
-                                              String outputPath) {
+    private static void initializeBroadcaster(int hostId, List<Host> allHosts, Set<Integer> hostDependencies,
+                                              RawPayloadFactory rawPayloadFactory, String outputPath) {
 //        logger = new FileLogger(outputPath);
         logger = new ConsoleLogger();
-        broadcaster = new FIFOUniformReliableBroadcast(hostId, allHosts, rawPayloadFactory);
+//        broadcaster = new FIFOUniformReliableBroadcast(hostId, allHosts, rawPayloadFactory);
+        broadcaster = new LocalizedCausalUniformReliableBroadcast(hostId, allHosts, hostDependencies, rawPayloadFactory);
         broadcaster.registerBroadcastObserver(logger);
         broadcaster.registerDeliveryObserver(logger);
     }
