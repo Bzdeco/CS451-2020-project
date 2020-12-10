@@ -1,7 +1,5 @@
 package cs451.abstraction.broadcast;
 
-import cs451.abstraction.Notifier;
-import cs451.abstraction.Observer;
 import cs451.abstraction.link.HostResolver;
 import cs451.abstraction.link.message.*;
 import cs451.parser.Host;
@@ -18,7 +16,7 @@ import java.util.concurrent.PriorityBlockingQueue;
  *     <li><a href="https://www.baeldung.com/java-concurrent-queues">Baeldung - Java concurrent queues</a></li>
  * </ul>
  */
-public class FIFOUniformReliableBroadcast extends Notifier implements Observer {
+public class FIFOUniformReliableBroadcast extends Broadcaster {
 
     final private int hostId;
     private int lastSequenceNumber;
@@ -54,6 +52,7 @@ public class FIFOUniformReliableBroadcast extends Notifier implements Observer {
         return nextToDeliver;
     }
 
+    @Override
     public void broadcast(Payload rawPayload) {
         lastSequenceNumber++;
         FIFOPayload fifoPayload = fifoPayloadFactory.create(hostId, lastSequenceNumber, rawPayload);
@@ -101,6 +100,7 @@ public class FIFOUniformReliableBroadcast extends Notifier implements Observer {
         return messageFactory.createMessageWithPayload(payload.getOriginalSenderId(), hostId, payload);
     }
 
+    @Override
     public void stop() {
         uniformReliableBroadcast.stop();
     }

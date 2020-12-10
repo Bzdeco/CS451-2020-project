@@ -13,7 +13,7 @@ import cs451.parser.Host;
 import java.util.LinkedList;
 import java.util.List;
 
-public class BestEffortBroadcast extends Notifier implements Observer {
+public class BestEffortBroadcast extends Broadcaster {
 
     final private int hostId;
     final private List<Host> otherHosts;
@@ -38,6 +38,11 @@ public class BestEffortBroadcast extends Notifier implements Observer {
         List<Host> hosts = new LinkedList<>(allHosts);
         hosts.remove(myself);
         return hosts;
+    }
+
+    @Override
+    public void broadcast(Payload payload) {
+        broadcast(payload, false);
     }
 
     public void broadcast(Payload payload, boolean isRelay) {
@@ -65,6 +70,7 @@ public class BestEffortBroadcast extends Notifier implements Observer {
         emitDeliverEvent(message);
     }
 
+    @Override
     public void stop() {
         perfectLink.stopThreads();
     }

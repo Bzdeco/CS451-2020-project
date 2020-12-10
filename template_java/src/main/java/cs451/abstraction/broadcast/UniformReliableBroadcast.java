@@ -1,7 +1,5 @@
 package cs451.abstraction.broadcast;
 
-import cs451.abstraction.Notifier;
-import cs451.abstraction.Observer;
 import cs451.abstraction.link.HostResolver;
 import cs451.abstraction.link.message.*;
 import cs451.parser.Host;
@@ -10,7 +8,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class UniformReliableBroadcast extends Notifier implements Observer {
+public class UniformReliableBroadcast extends Broadcaster {
 
     final private static AtomicInteger ZERO = new AtomicInteger(0);
 
@@ -48,6 +46,7 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
         this.deliveryThread = startDeliveryThread();
     }
 
+    @Override
     public void broadcast(Payload payload) {
         addToPending(payload);
         bestEffortBroadcast.broadcast(payload, false);
@@ -154,6 +153,7 @@ public class UniformReliableBroadcast extends Notifier implements Observer {
         deliveryThread.interrupt();
     }
 
+    @Override
     public void stop() {
         stopDeliveryThread();
         bestEffortBroadcast.stop();

@@ -3,7 +3,7 @@ package cs451.abstraction;
 import cs451.abstraction.link.message.Message;
 import cs451.abstraction.link.message.Payload;
 
-public class ConsoleLogger implements Observer {
+public class ConsoleLogger implements Logger {
 
     @Override
     public void notifyOfBroadcast(Payload payload) {
@@ -21,5 +21,10 @@ public class ConsoleLogger implements Observer {
 
     protected String createDeliveryLog(Payload payload) {
         return "d " + payload.getOriginalSenderId() + " " + payload.getSequenceNumber();
+    }
+
+    @Override
+    public void flush() {
+        // do nothing
     }
 }

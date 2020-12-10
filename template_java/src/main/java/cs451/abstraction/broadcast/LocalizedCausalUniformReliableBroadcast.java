@@ -1,7 +1,5 @@
 package cs451.abstraction.broadcast;
 
-import cs451.abstraction.Notifier;
-import cs451.abstraction.Observer;
 import cs451.abstraction.ProcessVectorClock;
 import cs451.abstraction.link.HostResolver;
 import cs451.abstraction.link.message.*;
@@ -13,7 +11,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class LocalizedCausalUniformReliableBroadcast extends Notifier implements Observer {
+public class LocalizedCausalUniformReliableBroadcast extends Broadcaster {
 
     final private int hostId;
     final private ProcessVectorClock vectorClock;
@@ -41,6 +39,7 @@ public class LocalizedCausalUniformReliableBroadcast extends Notifier implements
         uniformReliableBroadcast.registerDeliveryObserver(this);
     }
 
+    @Override
     public void broadcast(Payload rawPayload) {
         synchronized (vectorClock) {
             MessagePassedVectorClock passedVectorClock = new MessagePassedVectorClock(vectorClock, hostDependencies);
@@ -79,6 +78,7 @@ public class LocalizedCausalUniformReliableBroadcast extends Notifier implements
         return messageFactory.createMessageWithPayload(payload.getOriginalSenderId(), hostId, payload);
     }
 
+    @Override
     public void stop() {
         uniformReliableBroadcast.stop();
     }

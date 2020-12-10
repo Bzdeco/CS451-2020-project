@@ -1,7 +1,8 @@
 package cs451;
 
 import cs451.abstraction.ConsoleLogger;
-import cs451.abstraction.FileLogger;
+import cs451.abstraction.Logger;
+import cs451.abstraction.broadcast.Broadcaster;
 import cs451.abstraction.broadcast.FIFOUniformReliableBroadcast;
 import cs451.abstraction.link.message.RawPayloadFactory;
 import cs451.parser.FIFOConfigParser;
@@ -23,8 +24,8 @@ public class Main {
 
     final private static FIFOConfigParser configParser = new FIFOConfigParser();
 
-    private static FileLogger logger;
-    private static FIFOUniformReliableBroadcast broadcaster;
+    private static Logger logger;
+    private static Broadcaster broadcaster;
 
     private static void handleSignal() {
         // immediately stop network packet processing
@@ -92,8 +93,8 @@ public class Main {
 
     private static void initializeBroadcaster(int hostId, List<Host> allHosts, RawPayloadFactory rawPayloadFactory,
                                               String outputPath) {
-        logger = new FileLogger(outputPath);
-//        logger = new ConsoleLogger();
+//        logger = new FileLogger(outputPath);
+        logger = new ConsoleLogger();
         broadcaster = new FIFOUniformReliableBroadcast(hostId, allHosts, rawPayloadFactory);
         broadcaster.registerBroadcastObserver(logger);
         broadcaster.registerDeliveryObserver(logger);
