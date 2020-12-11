@@ -158,6 +158,7 @@ class Validation:
     def checkAll(self, continueOnError=True):
         ok = True
         for pid in range(1, self.processes+1):
+            print('Checking process', pid)
             ret = self.checkProcess(pid)
             if not ret:
                 ok = False
@@ -210,19 +211,19 @@ class FifoBroadcastValidation(Validation):
 
 
 class LCausalBroadcastValidation(Validation):
-    def __init__(self, processes, messages, outputDir, config_dependencies=None):
+    def __init__(self, processes, messages, outputDir, dependencies=None):
         super().__init__(processes, messages, outputDir)
-        self.config_dependencies = config_dependencies
+        self.dependencies = dependencies
 
         self.broadcastDependencies = {}
-        self.deliveries = []
+        self.deliveries = {}
 
     def generateConfig(self):
         config = tempfile.NamedTemporaryFile(mode='w')
 
         config.write("{}\n".format(self.messages))
 
-        if self.config_dependencies is not None:
+        if self.dependencies is not None:
             self._generateCausalRelationshipsFromDependencies(config)
         else:
             self._generateRandomCausalRelationships(config)
@@ -231,12 +232,18 @@ class LCausalBroadcastValidation(Validation):
 
         return self.generateHosts(), config
 
+    def printConfig(self):
+        print('Dependencies:')
+        for process in range(1, self.processes + 1):
+            print(f'{process}: {self.dependencies[process]}')
+
     def _generateCausalRelationshipsFromDependencies(self, config):
         for process in range(1, self.processes + 1):
-            line = [process] + sorted(self.config_dependencies[process])
-            config.write(line.join(' ') + '\n')
+            line = [process] + sorted(list(self.dependencies[process]))
+            config.write(' '.join([str(process) for process in line]) + '\n')
 
     def _generateRandomCausalRelationships(self, config):
+        self.dependencies = {}
         all_processes = list(range(1, self.processes + 1))
         n_processes = len(all_processes)
 
@@ -246,31 +253,36 @@ class LCausalBroadcastValidation(Validation):
                 sampled_dependencies.remove(process)
             except KeyError:
                 pass
+
             line = [process] + sorted(list(sampled_dependencies))
-            config.write(line.join(' ') + '\n')
+            config.write(' '.join([str(process) for process in line]) + '\n')
+
+            self.dependencies[process] = sampled_dependencies
+            self.dependencies[process].add(process)
 
     def parseBroadcastDependencies(self):
         for process in range(1, self.processes + 1):
-            self.broadcastDependencies[process] = {}
+            self.broadcastDependencies[process] = []
+            self.deliveries[process] = []
 
-            filePath = os.path.join(self.outputDirPath, 'proc{:02d}.output'.format(pid))
+            filePath = os.path.join(self.outputDirPath, 'proc{:02d}.output'.format(process))
             delivery_index = 0
             with open(filePath, 'r') as output_file:
                 for line in output_file:
-                    tokens = line.split('b')
+                    tokens = line.split(' ')
 
                     if tokens[0] == 'b':
-                        sequence_number = int(tokens[1])
-                        self.broadcastDependencies[process][sequence_number] = delivery_index
+                        self.broadcastDependencies[process].append(delivery_index)
 
                     if tokens[0] == 'd':
                         sender = int(tokens[1])
                         sequence_number = int(tokens[2])
-                        self.deliveries.append((sender, sequence_number))
-                        delivery_index += 1
+                        if sender in self.dependencies[process]:
+                            self.deliveries[process].append((sender, sequence_number))
+                            delivery_index += 1
 
-    def getBroadcastDependencies(self, sender, sequence_number):
-        return self.deliveries[:self.broadcastDependencies[sender][sequence_number]]
+    def getDeliveredDependenciesBeforeBroadcast(self, sender, sequence_number):
+        return self.deliveries[sender][:self.broadcastDependencies[sender][sequence_number - 1]]
 
     def checkProcess(self, pid):
         filePath = os.path.join(self.outputDirPath, 'proc{:02d}.output'.format(pid))
@@ -279,7 +291,7 @@ class LCausalBroadcastValidation(Validation):
         next_broadcast = 1
         delivered = set({})
         with open(filePath, 'r') as output_file:
-            for lineNumber, line in output_file:
+            for lineNumber, line in enumerate(output_file):
                 tokens = line.split(' ')
 
                 # Check broadcast
@@ -292,11 +304,10 @@ class LCausalBroadcastValidation(Validation):
                     next_broadcast += 1
 
                 # Check delivery
-                if tokens[1] == 'd':
+                if tokens[0] == 'd':
                     sender = int(tokens[1])
                     sequence_number = int(tokens[2])
-                    to_deliver_before = self.getBroadcastDependencies(sender, sequence_number)
-
+                    to_deliver_before = self.getDeliveredDependenciesBeforeBroadcast(sender, sequence_number)
                     for message in to_deliver_before:
                         if message not in delivered:
                             print(f"File {filename}, Line {lineNumber}: Message delivered prematurely. Delivered ("
@@ -462,6 +473,8 @@ def main(processes, messages, runscript, broadcastType, logsDir, testConfig):
         validation = LCausalBroadcastValidation(processes, messages, logsDir, None)
 
     hostsFile, configFile = validation.generateConfig()
+    if broadcastType == "lcausal":
+        validation.printConfig()
 
     try:
         # Start the processes and get their PIDs
@@ -512,6 +525,7 @@ def main(processes, messages, runscript, broadcastType, logsDir, testConfig):
         [p.join() for p in monitors]
 
         if broadcastType == 'lcausal':
+            print('Parsing broadcast dependencies')
             validation.parseBroadcastDependencies()
 
         input('Hit `Enter` to validate the output')

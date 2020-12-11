@@ -1,12 +1,10 @@
 package cs451;
 
-import cs451.abstraction.ConsoleLogger;
+import cs451.abstraction.FileLogger;
 import cs451.abstraction.Logger;
 import cs451.abstraction.broadcast.Broadcaster;
-import cs451.abstraction.broadcast.FIFOUniformReliableBroadcast;
 import cs451.abstraction.broadcast.LocalizedCausalUniformReliableBroadcast;
 import cs451.abstraction.link.message.RawPayloadFactory;
-import cs451.parser.FIFOConfigParser;
 import cs451.parser.Host;
 import cs451.parser.LocalizedCausalConfigParser;
 import cs451.parser.Parser;
@@ -48,7 +46,7 @@ public class Main {
         Parser parser = new Parser(args);
         parser.parse(configParser);
 
-//        initSignalHandlers();
+        initSignalHandlers();
 
         // example
         long pid = ProcessHandle.current().pid();
@@ -97,15 +95,13 @@ public class Main {
 
     private static void initializeBroadcaster(int hostId, List<Host> allHosts, Set<Integer> hostDependencies,
                                               RawPayloadFactory rawPayloadFactory, String outputPath) {
-//        logger = new FileLogger(outputPath);
-        logger = new ConsoleLogger();
-//        broadcaster = new FIFOUniformReliableBroadcast(hostId, allHosts, rawPayloadFactory);
+        logger = new FileLogger(outputPath);
         broadcaster = new LocalizedCausalUniformReliableBroadcast(hostId, allHosts, hostDependencies, rawPayloadFactory);
         broadcaster.registerBroadcastObserver(logger);
         broadcaster.registerDeliveryObserver(logger);
     }
 
     private static void checkConfigAvailable(Parser parser) {
-        if (!parser.hasConfig()) throw new RuntimeException("Config must be given for FIFO broadcasting");
+        if (!parser.hasConfig()) throw new RuntimeException("Config file missing");
     }
 }
