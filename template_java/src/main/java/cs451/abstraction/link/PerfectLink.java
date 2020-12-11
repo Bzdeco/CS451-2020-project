@@ -27,15 +27,18 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PerfectLink extends Notifier implements Observer {
 
     final private static int SENDING_SLEEP_TIME = 100;
+    final private static int INITIAL_SEND_WINDOW_SIZE = 500;
 
     final private Sender sender;
     final private Receiver receiver;
+    final private ThroughputMonitor throughputMonitor;
     final private Set<DatagramData> delivered;
 
     final private List<Thread> threads;
 
     public PerfectLink(Host host, List<Host> allHosts, PayloadFactory payloadFactory, MessageFactory messageFactory) {
-        MessagesStorage storage = new MessagesStorage(allHosts);
+        throughputMonitor = new ThroughputMonitor(INITIAL_SEND_WINDOW_SIZE);
+        MessagesStorage storage = new MessagesStorage(allHosts, throughputMonitor);
 
         this.sender = new Sender(storage);
         this.receiver = new Receiver(host, storage, payloadFactory, messageFactory);
@@ -49,9 +52,7 @@ public class PerfectLink extends Notifier implements Observer {
         boolean wasSent = sender.send(message);
 
         while (!wasSent) {
-            // FIXME try thread wait and notify
             try {
-//                wait();
                 Thread.sleep(SENDING_SLEEP_TIME);
                 wasSent = sender.send(message);
             } catch (InterruptedException exc) {
@@ -71,13 +72,15 @@ public class PerfectLink extends Notifier implements Observer {
             delivered.add(data);
             emitDeliverEvent(message);
         }
+        throughputMonitor.recordReceivedMessage();
     }
 
     public void startThreads() {
         Thread sendingThread = new Thread(this::runSendingAndAcknowledging);
         Thread receivingThread = new Thread(this::runReceivingPackets);
         Thread triagingThread = new Thread(this::runTriagingReceivedPackets);
-        threads.addAll(List.of(sendingThread, receivingThread, triagingThread));
+        Thread throughputMonitoringThread = new Thread(throughputMonitor::runMonitoring);
+        threads.addAll(List.of(sendingThread, receivingThread, triagingThread, throughputMonitoringThread));
         threads.forEach(Thread::start);
     }
 

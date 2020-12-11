@@ -1,7 +1,5 @@
 package cs451.abstraction.broadcast;
 
-import cs451.abstraction.Notifier;
-import cs451.abstraction.Observer;
 import cs451.abstraction.link.HostResolver;
 import cs451.abstraction.link.PerfectLink;
 import cs451.abstraction.link.message.Message;

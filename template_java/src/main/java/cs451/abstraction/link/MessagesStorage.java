@@ -27,26 +27,24 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class MessagesStorage {
 
-    final private static float LOAD_FACTOR = 0.75f;
-    final private static int SEND_WINDOW_SIZE = 20; // FIXME: arbitrary
-
     final private Map<Integer, TransmissionParameters> transmissionParametersForHosts;
     final private Set<Message> toSend;
     final private Map<Message, TransmissionHistory> recentUnacknowledgedMessages;
     final private Map<Message, TransmissionHistory> staleUnacknowledgedMessages;
     final private Map<DatagramData, Instant> receivedData;
     final private Set<Message> pendingAcknowledgmentReplies;
+    final private ThroughputMonitor throughputMonitor;
 
-    public MessagesStorage(List<Host> hosts) {
+    public MessagesStorage(List<Host> hosts, ThroughputMonitor throughputMonitor) {
         this.transmissionParametersForHosts = initializeTransmissionParameters(hosts);
 
         this.toSend = Collections.newSetFromMap(new ConcurrentHashMap<>());
-        int capacity = (int) Math.ceil(SEND_WINDOW_SIZE / LOAD_FACTOR);
-        this.recentUnacknowledgedMessages = new ConcurrentHashMap<>(capacity);
+        this.recentUnacknowledgedMessages = new ConcurrentHashMap<>();
         this.staleUnacknowledgedMessages = new ConcurrentHashMap<>();
         this.receivedData = new ConcurrentHashMap<>();
         // Concurrent set: https://stackoverflow.com/a/6992643
         this.pendingAcknowledgmentReplies = Collections.newSetFromMap(new ConcurrentHashMap<>());
+        this.throughputMonitor = throughputMonitor;
     }
 
     public TransmissionParameters getTransmissionParametersFor(int hostId) {
@@ -84,7 +82,7 @@ public class MessagesStorage {
     }
 
     public boolean canSendMessageImmediately() {
-        return recentUnacknowledgedMessages.size() < SEND_WINDOW_SIZE;
+        return recentUnacknowledgedMessages.size() < throughputMonitor.getSendWindowSize();
     }
 
     public void addUnacknowledgedMessage(Message message, TransmissionHistory history) {
