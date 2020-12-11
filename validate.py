@@ -288,6 +288,8 @@ class LCausalBroadcastValidation(Validation):
         filePath = os.path.join(self.outputDirPath, 'proc{:02d}.output'.format(pid))
         filename = os.path.basename(filePath)
 
+        print(self.broadcastDependencies[pid])
+
         next_broadcast = 1
         delivered = set({})
         with open(filePath, 'r') as output_file:
