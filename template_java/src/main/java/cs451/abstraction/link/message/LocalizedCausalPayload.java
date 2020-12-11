@@ -3,7 +3,7 @@ package cs451.abstraction.link.message;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-public class LocalizedCausalPayload implements Payload {
+public class LocalizedCausalPayload implements Comparable<LocalizedCausalPayload>, Payload {
 
     final private MessagePassedVectorClock vectorClock;
     final private Payload payload;
@@ -65,5 +65,12 @@ public class LocalizedCausalPayload implements Payload {
     @Override
     public int hashCode() {
         return Objects.hash(vectorClock, payload);
+    }
+
+    @Override
+    public int compareTo(LocalizedCausalPayload payload) {
+        MessagePassedVectorClock vectorClock = this.getVectorClock();
+        int hostId = vectorClock.getHostId();
+        return vectorClock.getEntryForHost(hostId) - payload.getVectorClock().getEntryForHost(hostId);
     }
 }

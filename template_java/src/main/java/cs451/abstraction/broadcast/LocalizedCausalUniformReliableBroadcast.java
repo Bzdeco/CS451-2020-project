@@ -1,14 +1,14 @@
 package cs451.abstraction.broadcast;
 
 import cs451.abstraction.ProcessVectorClock;
+import cs451.abstraction.link.HostResolver;
 import cs451.abstraction.link.message.*;
 import cs451.parser.Host;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.PriorityBlockingQueue;
 
 public class LocalizedCausalUniformReliableBroadcast extends Broadcaster {
 
@@ -17,9 +17,10 @@ public class LocalizedCausalUniformReliableBroadcast extends Broadcaster {
     final private Set<Integer> hostDependencies;
     private int lastSequenceNumber;
 
-    final private Set<Message> pending;
+    final private Map<Integer, BlockingQueue<LocalizedCausalPayload>> pendingQueues;
     final private Thread deliveryThread;
 
+    final private MessageFactory messageFactory;
     final private LocalizedCausalPayloadFactory localizedCausalPayloadFactory;
     final private UniformReliableBroadcast uniformReliableBroadcast;
 
@@ -31,13 +32,20 @@ public class LocalizedCausalUniformReliableBroadcast extends Broadcaster {
         this.hostDependencies = hostDependencies;
         lastSequenceNumber = 0;
 
-        pending = Collections.newSetFromMap(new ConcurrentHashMap<>());
+        pendingQueues = initializePendingQueues(allHosts);
         deliveryThread = startDeliveryThread();
 
+        messageFactory = new MessageFactory(new HostResolver(allHosts));
         localizedCausalPayloadFactory = new LocalizedCausalPayloadFactory(numberOfProcesses, rawDataPayloadFactory);
         uniformReliableBroadcast = new UniformReliableBroadcast(hostId, allHosts, localizedCausalPayloadFactory);
         uniformReliableBroadcast.registerBroadcastObserver(this);
         uniformReliableBroadcast.registerDeliveryObserver(this);
+    }
+
+    private static Map<Integer, BlockingQueue<LocalizedCausalPayload>> initializePendingQueues(List<Host> allHosts) {
+        Map<Integer, BlockingQueue<LocalizedCausalPayload>> pendingQueues = new ConcurrentHashMap<>();
+        allHosts.forEach(host -> pendingQueues.put(host.getId(), new PriorityBlockingQueue<>()));
+        return pendingQueues;
     }
 
     @Override
@@ -59,7 +67,9 @@ public class LocalizedCausalUniformReliableBroadcast extends Broadcaster {
 
     @Override
     public void notifyOfDelivery(Message message) {
-        pending.add(message);
+        Payload payload = message.getPayload();
+        int senderId = payload.getOriginalSenderId();
+        pendingQueues.get(senderId).add((LocalizedCausalPayload) payload);
     }
 
     private Thread startDeliveryThread() {
@@ -75,28 +85,35 @@ public class LocalizedCausalUniformReliableBroadcast extends Broadcaster {
     }
 
     private void processDeliveries() {
-        Set<Message> toRemove = new HashSet<>();
-        pending.forEach(pendingMessage -> {
-            LocalizedCausalPayload payload = LocalizedCausalPayload.unpackLocalizedCausalPayload(pendingMessage.getPayload());
-            MessagePassedVectorClock receivedVectorClock = payload.getVectorClock();
-            if (receivedVectorClock.isLessThanOrEqual(vectorClock)) {
-                toRemove.add(pendingMessage);
+        pendingQueues.forEach((hostId, queue) -> {
+            while (canDeliverFrontOfQueue(queue)) {
                 synchronized (vectorClock) {
-                    deliver(pendingMessage);
+                    try {
+                        deliver(queue.take());
+                    } catch (InterruptedException exc) {
+                        return;
+                    }
                 }
             }
         });
-        pending.removeAll(toRemove);
     }
 
-    protected void deliver(Message message) {
-        vectorClock.incrementForProcess(message.getPayload().getOriginalSenderId());
-        emitDeliverEvent(message);
+    private boolean canDeliverFrontOfQueue(Queue<LocalizedCausalPayload> queue) {
+        return !queue.isEmpty() && queue.peek().getVectorClock().isLessThanOrEqual(vectorClock);
+    }
+
+    protected void deliver(Payload payload) {
+        vectorClock.incrementForProcess(payload.getOriginalSenderId());
+        emitDeliverEvent(createDeliveredMessageFromPayload(payload));
+    }
+
+    private Message createDeliveredMessageFromPayload(Payload payload) {
+        return messageFactory.createMessageWithPayload(payload.getOriginalSenderId(), hostId, payload);
     }
 
     @Override
     public void stop() {
-        deliveryThread.interrupt();
         uniformReliableBroadcast.stop();
+        deliveryThread.interrupt();
     }
 }
